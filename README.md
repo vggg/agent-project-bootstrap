@@ -41,6 +41,12 @@ workspaces/
   designer/CLAUDE.md      # designer session guide
 ```
 
+**Slash commands** (installed globally, available to every Claude Code session):
+```
+commands/
+  vc.md                   # `/vc` — vault commit workflow with agent-prefix convention
+```
+
 ## Installation
 
 ```

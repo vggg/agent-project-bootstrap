@@ -43,6 +43,14 @@ assets/vault/projects/__PROJECT__/    → {{VAULT_PATH}}/projects/{{PROJECT_SLUG
 
 Dev 1 and Dev 2 use the same template. If the project uses a shared GitHub repo for both dev workspaces, commit the repo-root CLAUDE.md once — both workspaces pull it.
 
+**3a. Copy slash commands (recommended).**
+
+```
+assets/commands/vc.md → ~/.claude/commands/vc.md
+```
+
+Installs the `/vc` slash command globally for the user. Once placed, any Claude Code session (any agent, any project) can run `/vc` to commit and push vault changes following the canonical agent-prefix convention. See `assets/commands/vc.md` for the workflow.
+
 **4. Fill placeholders.**
 
 Substitute all `{{...}}` tokens. When done, verify none remain:
@@ -111,4 +119,6 @@ assets/
     dev/CLAUDE.md
     analyst/CLAUDE.md
     designer/CLAUDE.md
+  commands/
+    vc.md
 ```
