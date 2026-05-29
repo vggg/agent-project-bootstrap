@@ -1,6 +1,12 @@
 # agent-project-bootstrap
 
-A Claude Code plugin that scaffolds a multi-agent project setup from templates. It generates the Obsidian vault structure for a librarian agent (Iris), the COORDINATION.md that governs cross-agent protocol, and the workspace CLAUDE.md files for up to four worker agents: two developers, an analyst, and a designer. All files use `{{placeholder}}` tokens you fill once; nothing is hardcoded to a specific project.
+A Claude Code plugin that scaffolds a multi-agent project setup from templates. As of **v0.3.0**, three modes are available:
+
+- **`vault-project`** — the original lean pattern. Vault-based five-agent project (librarian + two devs + analyst + designer), suitable for solo / local-team work where all collaborators share the same personal vault.
+- **`collab-repo-project`** — the **Option A** pattern. Emits a dedicated collab repo per project (CONVENTIONS, COORDINATION, agent manuals, handoffs, decisions, project wiki) separable from any personal vault. Designed for projects with multiple **remote** collaborators who shouldn't have access to each other's personal substrate.
+- **`join-collab-project`** — walks a new human collaborator through joining an existing collab repo: clone, claim a persona, set git identity, validate with a "hello" PR.
+
+All emitted files use `{{placeholder}}` tokens you fill once; nothing is hardcoded to a specific project.
 
 ## When it's useful
 
@@ -16,6 +22,8 @@ A Claude Code plugin that scaffolds a multi-agent project setup from templates. 
 - Team setups where human engineers handle coordination and you only need one agent at a time
 
 ## What gets generated
+
+### `vault-project` mode
 
 **Vault structure** (Obsidian, git-tracked):
 ```
@@ -41,6 +49,35 @@ workspaces/
   designer/CLAUDE.md      # designer session guide
 ```
 
+### `collab-repo-project` mode (new in v0.3.0)
+
+**Collab repo structure** (a dedicated GitHub repo, separate from your code repo):
+```
+README.md                 # project overview
+CONVENTIONS.md            # repo-wide rules (identity, labels, routing, tool hierarchy)
+COORDINATION.md           # multi-persona protocol + Hot files section
+CLAUDE.md                 # entry pointer for any Claude Code session
+BOOTSTRAP.md              # collaborator-facing onboarding
+BOOTSTRAP-ADMIN.md        # owner-only operations (optional trust-gating runbook)
+agents/
+  <persona-slug>/
+    AGENT.md              # per-persona operating manual
+  librarian/
+    AGENT.md              # always emitted by default
+    FAILOVER.md           # centralized-with-failover runbook
+_handoff/                 # cross-persona async messages
+decisions/                # project-level decisions + ADR pointer stubs
+findings/                 # investigations, dev logs, UAT, research
+wiki/                     # synthesised by the Librarian
+```
+
+Three persona archetypes are supported, distinguished by runtime:
+- **dev** — human-triggered Claude Code sessions on the collaborator's machine
+- **autonomous-event** — GitHub Actions on a webhook (e.g. PR Reviewer, Backtest Runner)
+- **autonomous-cron** — `/schedule` skill on someone's machine (e.g. PM+UAT, Librarian)
+
+### Slash commands (both modes)
+
 **Slash commands** (installed globally, available to every Claude Code session):
 ```
 commands/
@@ -59,9 +96,14 @@ commands/
 
 After installation, tell Claude something like:
 
-> "Use the agent-project-bootstrap skill to set up a new project."
+> "Use the agent-project-bootstrap skill to set up a new project in `collab-repo-project` mode."
 
-Claude will ask for your project name, vault path, workspace base directory, GitHub repo, live URL, and tech stack, then emit all files with placeholders substituted. The emit process is documented in `skills/agent-project-bootstrap/SKILL.md` for reference.
+Claude will ask for the inputs the mode needs (project name, repos, personas, etc.) and emit all files with placeholders substituted. Each mode is self-contained — `SKILL.md` has a section per mode you can read independently.
+
+**Choosing a mode:**
+- Use `vault-project` if you're the only operator (or all collaborators share your vault) and want the simplest setup.
+- Use `collab-repo-project` if multiple remote collaborators need to see each other's work and you want trust isolation between them and your personal substrate.
+- Use `join-collab-project` if you're a new collaborator joining a project someone else set up.
 
 ## Customisation
 

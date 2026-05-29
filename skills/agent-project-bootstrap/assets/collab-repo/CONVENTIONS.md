@@ -1,0 +1,95 @@
+# {{PROJECT_NAME}} — Conventions
+
+Project-wide conventions that apply to every persona on the team. These are the rules of the road. Read once; reference when needed.
+
+## Recent changes
+
+<!-- 3 entries max, most recent first -->
+
+---
+
+## Repo split
+
+| Repo | Owns | Your access |
+|---|---|---|
+| `{{CODE_REPO}}` | Application code, migrations, tests, PR/issue work state | Per persona (see your `agents/<you>/AGENT.md`) |
+| `{{COLLAB_REPO}}` (this repo) | Persona manuals, conventions, coordination, decisions, findings, wiki | Per persona — typically write-via-PR for collaborators during trust-gating; direct push afterward |
+
+GitHub is authoritative for **work state** (issues, PRs, merges). This repo is authoritative for **why** (decisions, findings, conventions).
+
+---
+
+## Identity, labels, and routing
+
+Each persona has a row in this table. The project owner assigns persona slots to humans (one human → one or more personas).
+
+| Persona | GitHub handle | Git identity | Commit prefix | Routing label |
+|---|---|---|---|---|
+| {{OWNER_HANDLE}} (owner) | `@{{OWNER_HANDLE}}` | (real human identity) | n/a (uses persona prefixes when running an agent) | `@{{OWNER_HANDLE}}` direct |
+| (one row per persona — fill from `agents/<persona>/AGENT.md`) | | | | |
+
+**Routing convention:**
+- Autonomous personas (PR Reviewer, Backtest Runner, Librarian, etc.) **do not have GitHub accounts**. Tag them via the `agent-<persona>` label on the relevant issue or PR. The persona's session-start grep picks it up.
+- Human collaborators **do** have GitHub accounts and can be `@`-tagged. Prefer the label-routing convention for async asks (more durable than @-mentions); reserve `@`-tag for "I need a synchronous response from this specific human."
+
+---
+
+## Wikilinks and file references
+
+Use wikilinks (`[[folder/filename]]`) for vault-internal references between files in this repo. Use Markdown links (`[label](path)`) for GitHub-rendered display (READMEs, PR descriptions).
+
+---
+
+## Tool hierarchy
+
+For working in this repo:
+
+| Task | Tool |
+|---|---|
+| Read or write a file | `Read` / `Write` / `Edit` at absolute paths |
+| Search content | `Bash` with `grep -r` |
+| Git operations | `Bash` |
+| GitHub work-state (issues, PRs) | `gh` CLI |
+
+Do not use Obsidian MCP tools — they are unreliable across environments. The repo is a plain Markdown filesystem.
+
+---
+
+## `_handoff/` lifecycle
+
+All cross-persona async messages go through `_handoff/`. Filename: `YYYY-MM-DD-HHMM-<from>-<topic-slug>.md`.
+
+Required frontmatter:
+```yaml
+---
+created: YYYY-MM-DD
+status: open
+for: <PersonaName | all>
+from: <PersonaName>
+priority: low | medium | high
+---
+```
+
+**Lifecycle:** receiver reads → acts → sets `status: done`. **Never delete handoff files.** The append-only model preserves coordination history.
+
+---
+
+## Contradictory rules
+
+If two documents in this repo contradict each other, the precedence order is:
+
+1. `CONVENTIONS.md` (this file) — vault mechanics + repo-wide rules
+2. `COORDINATION.md` — multi-persona protocol + workflow
+3. Persona `AGENT.md` — persona-specific rules
+
+If you find a contradiction, drop a `_handoff/` for the owner (`for: {{OWNER_HANDLE}}`) describing the conflict. Don't auto-fix shared config.
+
+---
+
+## What never happens
+
+- `git push --force` to `main` on either repo
+- Deleting `_handoff/` files
+- Writing to `wiki/` from a non-Librarian persona
+- Committing secrets (`.env`, credentials, API keys)
+- A persona acting outside the scope declared in its `AGENT.md`
