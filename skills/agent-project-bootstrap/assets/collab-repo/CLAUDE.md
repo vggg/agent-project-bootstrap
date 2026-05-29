@@ -4,10 +4,11 @@
 
 ## Read these first
 
-1. **`BOOTSTRAP.md`** — if this is your first time here. Walks you through claiming a persona and getting started.
-2. **`CONVENTIONS.md`** — repo-wide rules.
-3. **`COORDINATION.md`** — multi-persona protocol; session-start checklist; ADR rules; hot files.
-4. **Your `agents/<you>/AGENT.md`** — your persona-specific operating manual.
+1. **`QUICKSTART.md`** — fastest path to operational (agent-led, ~30 min). Use this if you're onboarding via an AI coding agent (Claude Code, code-puppy, etc.).
+2. **`BOOTSTRAP.md`** — manual step-by-step onboarding (~45 min). Use this if you're onboarding without an agent, or want the deeper reference.
+3. **`CONVENTIONS.md`** — repo-wide rules.
+4. **`COORDINATION.md`** — multi-persona protocol; session-start checklist; ADR rules; hot files.
+5. **Your `agents/<you>/AGENT.md`** — your persona-specific operating manual.
 
 ## Quick orientation
 

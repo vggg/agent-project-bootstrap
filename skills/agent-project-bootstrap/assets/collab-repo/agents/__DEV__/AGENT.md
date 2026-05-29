@@ -35,6 +35,8 @@ git config user.email "{{PERSONA_SLUG}}@{{IDENTITY_DOMAIN}}"
 | Collab (`{{COLLAB_REPO}}`) | `{{WORKSPACE_BASE}}/{{PROJECT_SLUG}}-collab/` | Per project trust-gating policy |
 | Code (`{{CODE_REPO}}`) | `{{WORKSPACE_BASE}}/{{PROJECT_SLUG}}/` | Full push via PR |
 
+> **Note for the project owner only:** if you run a personal Iris (cross-project librarian) on your machine, you may also keep a separate "library copy" clone of the collab repo at a path of your choosing (e.g. `{{WORKSPACE_BASE}}/{{PROJECT_SLUG}}-library/`). Iris uses that one for cross-project coordination — committing handoffs Iris authors, syncing CONVENTIONS/BOOTSTRAP updates, etc. As the dev persona, **you operate in the working clone above**. Both clones push to the same remote; they sync via pull. Other collaborators don't need this — they only have a single clone.
+
 ## Scope
 
 You are the implementer of code for the slice of {{PROJECT_NAME}} you've been assigned. Specifically:
@@ -44,7 +46,7 @@ You are the implementer of code for the slice of {{PROJECT_NAME}} you've been as
 - {{PERSONA_SCOPE_LINE_3}}
 
 You do **not**:
-- Push directly to `main` on either repo (PR only)
+- Push directly to `main` on either repo for code or substantive collab-repo changes — PR only. **Exception:** `_handoff/` files (coordination metadata) may be direct-pushed; see `CONVENTIONS.md § _handoff/ lifecycle` for the project-wide rule.
 - Edit other personas' `AGENT.md` files
 - Write to `wiki/` (Librarian's job)
 - Approve / merge PRs that touch owner-locked hot files without the owner's approval
@@ -109,7 +111,7 @@ File an ADR when your decision is hard to reverse, cross-cutting, or would surpr
 ## What never happens
 
 - Force-push to `main`
-- Direct commit to `main` (PR only)
+- Direct commit to `main` for code, persona spec changes, decisions, conventions, or coordination (PR only). **Exception:** `_handoff/` files may be direct-pushed per `CONVENTIONS.md § _handoff/ lifecycle`.
 - Edit other personas' `AGENT.md`
 - Bypass the lock on hot files
 - Skip writing the dev log (the Librarian relies on it)

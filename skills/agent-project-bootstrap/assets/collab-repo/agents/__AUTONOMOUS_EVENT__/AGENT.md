@@ -48,6 +48,16 @@ You do not have a workspace path. You execute in the ephemeral GitHub Actions ru
 | Push commits to a branch | {{COMMIT_AUTHORITY}} |
 | Create issues | {{CREATE_ISSUE_AUTHORITY}} |
 
+## First-run handling
+
+On your first invocation in a fresh workspace (whether triggered by a real event or run manually for testing), check for a one-time genesis handoff:
+
+```bash
+ls _handoff/*-bootstrap-to-{{PERSONA_SLUG}}-genesis.md 2>/dev/null | head -1
+```
+
+If found and `status: open` is in the file, process it (it explains what to do for first-run setup), flip to `status: done`, then proceed with the regular event handling. The genesis handoff is one-time — never act on it again once `status: done`.
+
 ## Trigger & runtime details
 
 Workflow file: `.github/workflows/{{PERSONA_SLUG}}.yml` in `{{CODE_REPO}}`.

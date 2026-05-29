@@ -72,6 +72,8 @@ priority: low | medium | high
 
 **Lifecycle:** receiver reads → acts → sets `status: done`. **Never delete handoff files.** The append-only model preserves coordination history.
 
+**Push policy:** `_handoff/` files (both creation and status-flip) **may be direct-pushed to `main`** — they're coordination metadata, not substantive changes. Substantive changes (code, persona `AGENT.md` edits, `decisions/`, `CONVENTIONS.md`, `COORDINATION.md`, `wiki/` entries authored by the Librarian) require a PR per each persona's working rules. This exception keeps the coordination surface cheap; the PR gate stays on the things that benefit from review.
+
 ---
 
 ## Contradictory rules

@@ -1,6 +1,6 @@
 ---
 name: agent-project-bootstrap
-version: 0.3.0
+version: 0.3.1
 created: 2026-05-22
 updated: 2026-05-29
 ---
@@ -158,19 +158,38 @@ cd {{LOCAL_COLLAB_PATH}}
 assets/collab-repo/CONVENTIONS.md      → {{LOCAL_COLLAB_PATH}}/CONVENTIONS.md
 assets/collab-repo/COORDINATION.md     → {{LOCAL_COLLAB_PATH}}/COORDINATION.md
 assets/collab-repo/CLAUDE.md           → {{LOCAL_COLLAB_PATH}}/CLAUDE.md
+assets/collab-repo/QUICKSTART.md       → {{LOCAL_COLLAB_PATH}}/QUICKSTART.md     # NEW v0.3.1
 assets/collab-repo/BOOTSTRAP.md        → {{LOCAL_COLLAB_PATH}}/BOOTSTRAP.md
 assets/collab-repo/BOOTSTRAP-ADMIN.md  → {{LOCAL_COLLAB_PATH}}/BOOTSTRAP-ADMIN.md
 assets/collab-repo/README.md           → {{LOCAL_COLLAB_PATH}}/README.md
 ```
 
-**3. Create empty subfolders with `.gitkeep`-style READMEs.**
+**3. Create subfolders with READMEs and genesis content.**
+
+Most subfolder READMEs are pure scaffolding. v0.3.1 adds three "genesis" files (wiki/log.md, wiki/index.md, and a one-time Librarian handoff) so the Librarian's first cron run has a real `find -newer wiki/log.md` baseline instead of silently no-op'ing.
 
 ```
-assets/collab-repo/_handoff/README.md  → {{LOCAL_COLLAB_PATH}}/_handoff/README.md
+assets/collab-repo/_handoff/README.md                                  → {{LOCAL_COLLAB_PATH}}/_handoff/README.md
+assets/collab-repo/_handoff/{{DATE}}-bootstrap-to-librarian-genesis.md → {{LOCAL_COLLAB_PATH}}/_handoff/{{TODAY_YYYY-MM-DD-HHMM}}-bootstrap-to-librarian-genesis.md     # NEW v0.3.1
 assets/collab-repo/decisions/README.md → {{LOCAL_COLLAB_PATH}}/decisions/README.md
 assets/collab-repo/findings/README.md  → {{LOCAL_COLLAB_PATH}}/findings/README.md
 assets/collab-repo/wiki/README.md      → {{LOCAL_COLLAB_PATH}}/wiki/README.md
+assets/collab-repo/wiki/log.md         → {{LOCAL_COLLAB_PATH}}/wiki/log.md       # NEW v0.3.1
+assets/collab-repo/wiki/index.md       → {{LOCAL_COLLAB_PATH}}/wiki/index.md     # NEW v0.3.1
 ```
+
+**3a. Copy the workspace-template folder.**
+
+```
+assets/collab-repo/workspace-template/CLAUDE.md   → {{LOCAL_COLLAB_PATH}}/workspace-template/CLAUDE.md   # NEW v0.3.1
+assets/collab-repo/workspace-template/AGENTS.md   → {{LOCAL_COLLAB_PATH}}/workspace-template/AGENTS.md   # NEW v0.3.1
+assets/collab-repo/workspace-template/setup.sh    → {{LOCAL_COLLAB_PATH}}/workspace-template/setup.sh    # NEW v0.3.1
+chmod +x {{LOCAL_COLLAB_PATH}}/workspace-template/setup.sh
+```
+
+The `workspace-template/` provides a runtime-portable workspace bootstrap. Any collaborator (human or failover-runner of an autonomous persona) can `./workspace-template/setup.sh <persona-slug>` to scaffold a working workspace at `~/Workspace/{{PROJECT_NAME}}/<slug>/` with both repos cloned, per-repo git identity configured, and the thin CLAUDE.md + AGENTS.md bootstrap files in place.
+
+Cron self-registration (for cadence-driven personas) is **not** included in v0.3.1's setup.sh — that's targeted for v0.4.0.
 
 **4. Emit persona AGENT.md files.**
 
@@ -438,7 +457,7 @@ Claim a ticket per your `AGENT.md`'s instructions. Welcome aboard.
 
 ---
 
-# File manifest (v0.3.0)
+# File manifest (v0.3.1)
 
 ```
 SKILL.md                         (multi-mode dispatcher; this file)
@@ -455,23 +474,33 @@ assets/
     projects/__PROJECT__/
       CLAUDE.md
       COORDINATION.md
-  collab-repo/                   (collab-repo-project mode assets; new in v0.3.0)
-    CONVENTIONS.md
+  collab-repo/                   (collab-repo-project mode assets; new in v0.3.0, expanded v0.3.1)
+    CONVENTIONS.md               (v0.3.1: handoff direct-push carve-out added)
     COORDINATION.md
-    CLAUDE.md
-    BOOTSTRAP.md
+    CLAUDE.md                    (v0.3.1: QUICKSTART promoted to item 1 in "Read these first")
+    BOOTSTRAP.md                 (v0.3.1: Step 3 rewritten as "fire up workspace"; Step 6 "announce yourself" added)
     BOOTSTRAP-ADMIN.md
+    QUICKSTART.md                (NEW v0.3.1: agent-led onboarding with canonical prompt)
     README.md
-    _handoff/README.md
+    _handoff/
+      README.md
+      {{DATE}}-bootstrap-to-librarian-genesis.md   (NEW v0.3.1: one-time genesis handoff for Librarian)
     decisions/README.md
     findings/README.md
-    wiki/README.md
+    wiki/
+      README.md
+      log.md                     (NEW v0.3.1: genesis log entry; gives Librarian a find-newer baseline)
+      index.md                   (NEW v0.3.1: standard catalog scaffold)
+    workspace-template/          (NEW v0.3.1: runtime-portable workspace bootstrap)
+      CLAUDE.md
+      AGENTS.md
+      setup.sh
     agents/
-      __DEV__/AGENT.md
-      __AUTONOMOUS_EVENT__/AGENT.md
-      __AUTONOMOUS_CRON__/AGENT.md
+      __DEV__/AGENT.md           (v0.3.1: owner two-clone note; handoff push exception)
+      __AUTONOMOUS_EVENT__/AGENT.md  (v0.3.1: First-run handling section)
+      __AUTONOMOUS_CRON__/AGENT.md   (v0.3.1: First-run handling section)
       librarian/
-        AGENT.md
+        AGENT.md                 (v0.3.1: First-run handling + Drift checks sections)
         FAILOVER.md
   workspaces/                    (vault-project mode workspace files; unchanged)
     dev/CLAUDE.md

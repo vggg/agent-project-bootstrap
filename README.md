@@ -1,6 +1,6 @@
 # agent-project-bootstrap
 
-A Claude Code plugin that scaffolds a multi-agent project setup from templates. As of **v0.3.0**, three modes are available:
+A Claude Code plugin that scaffolds a multi-agent project setup from templates. As of **v0.3.1**, three modes are available:
 
 - **`vault-project`** — the original lean pattern. Vault-based five-agent project (librarian + two devs + analyst + designer), suitable for solo / local-team work where all collaborators share the same personal vault.
 - **`collab-repo-project`** — the **Option A** pattern. Emits a dedicated collab repo per project (CONVENTIONS, COORDINATION, agent manuals, handoffs, decisions, project wiki) separable from any personal vault. Designed for projects with multiple **remote** collaborators who shouldn't have access to each other's personal substrate.

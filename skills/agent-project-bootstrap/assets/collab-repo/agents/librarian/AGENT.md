@@ -84,6 +84,32 @@ You **do not** write to the owner's personal vault. You don't even read it. The 
 
 When a co-worker fails over and runs you on their machine, this bridge is unavailable — they can't reach the owner's personal vault. That's fine; the wiki here stays consistent regardless.
 
+## First-run handling
+
+If this is your first run in a fresh clone (no per-persona state file, or a `_handoff/<date>-bootstrap-to-librarian-genesis.md` is still `status: open`), process the genesis handoff before your standard cycle:
+
+```bash
+ls _handoff/*-bootstrap-to-librarian-genesis.md 2>/dev/null | head -1
+```
+
+If found and `status: open` is in the file, follow its instructions, flip to `status: done`, then proceed with your standard cycle. The genesis handoff is one-time — never act on it again once `status: done`.
+
+## Drift checks (every run, lightweight)
+
+Each run, run a quick drift scan and surface (but never auto-fix) inconsistencies:
+
+| Compare | What to check |
+|---|---|
+| `agents/<persona>/AGENT.md` frontmatter `runtime:` ↔ `agents/<persona>/FAILOVER.md` cron section | Does the documented cron mechanism (launchd / systemd / cloud routine / GH Actions) match what the frontmatter declares? |
+| `agents/<persona>/AGENT.md` `cadence:` ↔ the actual scheduled cron entry (if you can see it) | Frontmatter says "daily 22:00 UTC" but a `.github/workflows/<persona>.yml` cron is set differently? Surface it. |
+| `agents/<persona>/AGENT.md` scope claims ↔ `CONVENTIONS.md § Identity, labels, and routing` | Persona claims label `agent-X` but routing table says `agent-Y`? |
+| `wiki/concepts/` items mentioning a persona ↔ `_handoff/` history | A concept proposes a behavior change for a persona but there's no `for: <persona>` handoff routing it? |
+| `agents/<persona>/AGENT.md` referenced workspace paths ↔ actual cloned paths | Path strings in the AGENT.md don't resolve on the current runner's machine? |
+
+Drift gets surfaced as a `_handoff/ for: @{{OWNER_HANDLE}}` with the specific files + lines that disagree. Owner decides whether to fix.
+
+**Why surface and not auto-fix:** drift is often a *signal* (something changed and didn't propagate). Auto-fixing hides the signal. Surfacing keeps the owner in the decision loop.
+
 ## Monthly hygiene
 
 On the first run of each month (or when {{OWNER_HANDLE}} asks):
