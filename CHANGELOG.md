@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-05-29
+
+Same-day follow-up to v0.3.1, closing out the remaining items from [Decision 6](https://github.com/vggg/Irisidian/blob/main/projects/multi-agent-setup/decisions/2026-05-29-6-bootstrap-genesis-emission.md). All v0.3.1 invocations still work unchanged.
+
+### Added — runtime-aware cron + FAILOVER templating
+
+- **`runtime:` taxonomy** for AGENT.md frontmatter, replacing the older `schedule-skill` / `github-actions` strings. Supported values:
+  - `launchd-cron` — macOS launchd; per-runner machine; laptop must be on.
+  - `systemd-timer` — Linux systemd timer; per-runner machine; laptop must be on.
+  - `cloud-routine` — Anthropic-hosted `/schedule` routine; always-on.
+  - `gh-actions-cron` — GitHub Actions scheduled workflow; always-on.
+  - `gh-actions-event` — GitHub Actions on PR / event webhook (for `__AUTONOMOUS_EVENT__` personas).
+  Each AGENT.md template now carries a comment block documenting the taxonomy inline.
+- **Per-runtime FAILOVER cron section snippets** under `assets/collab-repo/_failover-cron-sections/`:
+  - `launchd-cron.md` — generated wrapper + plist; `launchctl bootstrap` / `bootout` commands.
+  - `systemd-timer.md` — generated `.service` + `.timer`; `systemctl --user` lifecycle.
+  - `cloud-routine.md` — `/schedule` invocation; per-account billing notes.
+  - `gh-actions-cron.md` — workflow file pattern; PAT secret requirements.
+  The skill picks the right snippet at scaffold time based on the persona's `runtime:` field and substitutes it into the templated `agents/<persona>/FAILOVER.md`'s `{{FAILOVER_CRON_SECTION}}` placeholder.
+- **`workspace-template/setup.sh` gains opt-in cron stub generation** behind `REGISTER_CRON=yes`:
+  - `launchd-cron` → generates `~/Workspace/<project>/<persona>/com.<project>.<persona>.plist` + wrapper script. Stub is generated, NOT loaded; you load it manually via `launchctl bootstrap` after reviewing the schedule. Idempotent (skips if plist already exists).
+  - `systemd-timer` → generates `.service` + `.timer` + wrapper. Same opt-in-load pattern.
+  - `cloud-routine` → prints the `/schedule` command to run in Claude Code.
+  - `gh-actions-*` → no-op locally (cron lives in the code repo workflow).
+  Generation happens only when `REGISTER_CRON=yes` is set; default behavior is workspace-only.
+
+### Changed
+
+- **`agents/librarian/FAILOVER.md`** "Enable the cron on your machine" section is now `{{FAILOVER_CRON_SECTION}}` (per-runtime). The skill fills it from the matching `_failover-cron-sections/*.md` snippet.
+- **`agents/__AUTONOMOUS_EVENT__/AGENT.md`** frontmatter `runtime` field is now `gh-actions-event` (was `github-actions`).
+
+### Compatibility
+
+- v0.3.1 invocations work unchanged. Existing collab repos do not need to migrate.
+- The old `runtime: schedule-skill` and `runtime: github-actions` values still parse — the new taxonomy is additive.
+
+### Why generation but not auto-load
+
+Cron registration is the kind of action where "almost right" is much worse than "explicitly opt-in." DST drift, double-registration across two laptops, accidental cron-from-the-wrong-runner — these are real failure modes. The stub-and-load split makes the dangerous step explicit and human-reviewed. Auto-load may land in a later release once we've gathered usage data on whether the explicit step actually catches errors in practice.
+
+### Validated against
+
+VANAR's launchd-cron pilot (Vikram's machine, daily 15:00 PT). The generated plist + wrapper produced by v0.3.2's `setup.sh REGISTER_CRON=yes` matches VANAR's hand-rolled artifacts byte-for-byte (modulo the manual TODO timestamp adjustment).
+
 ## [0.3.1] — 2026-05-29
 
 Patch release codifying lessons from VANAR's pilot day (first real use of v0.3.0). All additions are template content; no interface changes. v0.3.0 invocations still work unchanged.

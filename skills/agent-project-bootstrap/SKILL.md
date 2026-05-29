@@ -1,6 +1,6 @@
 ---
 name: agent-project-bootstrap
-version: 0.3.1
+version: 0.3.2
 created: 2026-05-22
 updated: 2026-05-29
 ---
@@ -203,6 +203,24 @@ For each declared persona, pick the right archetype template and copy it to `age
 | Librarian | `assets/collab-repo/agents/librarian/AGENT.md` + `FAILOVER.md` | Emitted by default; one per project |
 
 Rename each `__DEV__` / `__AUTONOMOUS_EVENT__` / `__AUTONOMOUS_CRON__` folder to the persona's slug as you copy.
+
+**For each persona, prompt for the `runtime:` field (new in v0.3.2).** The taxonomy:
+
+| Value | When to pick | FAILOVER snippet used |
+|---|---|---|
+| `launchd-cron` | macOS-based default runner; cadence-driven | `_failover-cron-sections/launchd-cron.md` |
+| `systemd-timer` | Linux-based default runner; cadence-driven | `_failover-cron-sections/systemd-timer.md` |
+| `cloud-routine` | Anthropic-hosted always-on; cadence-driven | `_failover-cron-sections/cloud-routine.md` |
+| `gh-actions-cron` | GitHub-hosted always-on; cadence-driven | `_failover-cron-sections/gh-actions-cron.md` |
+| `gh-actions-event` | GitHub-hosted; event-triggered (PR webhook, etc.) | N/A — no FAILOVER.md emitted for event-triggered |
+
+**4a. Emit per-runtime FAILOVER cron section (new in v0.3.2).**
+
+For each persona that has a FAILOVER.md (Librarian; any other cadence-driven persona where failover is meaningful):
+
+1. Read the `runtime:` field from the persona's `AGENT.md` frontmatter.
+2. Copy `assets/collab-repo/_failover-cron-sections/{{runtime}}.md` into the persona's `FAILOVER.md`, substituting the `{{FAILOVER_CRON_SECTION}}` placeholder.
+3. Fill any remaining placeholders ({{PROJECT_NAME}}, {{PROJECT_NAME_LOWER}}, {{CADENCE}}, etc.).
 
 **5. Fill placeholders.**
 
@@ -457,7 +475,7 @@ Claim a ticket per your `AGENT.md`'s instructions. Welcome aboard.
 
 ---
 
-# File manifest (v0.3.1)
+# File manifest (v0.3.2)
 
 ```
 SKILL.md                         (multi-mode dispatcher; this file)
@@ -474,7 +492,7 @@ assets/
     projects/__PROJECT__/
       CLAUDE.md
       COORDINATION.md
-  collab-repo/                   (collab-repo-project mode assets; new in v0.3.0, expanded v0.3.1)
+  collab-repo/                   (collab-repo-project mode assets; new in v0.3.0, expanded v0.3.1 + v0.3.2)
     CONVENTIONS.md               (v0.3.1: handoff direct-push carve-out added)
     COORDINATION.md
     CLAUDE.md                    (v0.3.1: QUICKSTART promoted to item 1 in "Read these first")
@@ -494,14 +512,19 @@ assets/
     workspace-template/          (NEW v0.3.1: runtime-portable workspace bootstrap)
       CLAUDE.md
       AGENTS.md
-      setup.sh
+      setup.sh                   (v0.3.2: opt-in cron stub generation behind REGISTER_CRON=yes)
+    _failover-cron-sections/     (NEW v0.3.2: per-runtime FAILOVER cron section snippets)
+      launchd-cron.md
+      systemd-timer.md
+      cloud-routine.md
+      gh-actions-cron.md
     agents/
       __DEV__/AGENT.md           (v0.3.1: owner two-clone note; handoff push exception)
-      __AUTONOMOUS_EVENT__/AGENT.md  (v0.3.1: First-run handling section)
-      __AUTONOMOUS_CRON__/AGENT.md   (v0.3.1: First-run handling section)
+      __AUTONOMOUS_EVENT__/AGENT.md  (v0.3.1: First-run handling section; v0.3.2: runtime: gh-actions-event)
+      __AUTONOMOUS_CRON__/AGENT.md   (v0.3.1: First-run handling section; v0.3.2: runtime: taxonomy comment)
       librarian/
-        AGENT.md                 (v0.3.1: First-run handling + Drift checks sections)
-        FAILOVER.md
+        AGENT.md                 (v0.3.1: First-run handling + Drift checks; v0.3.2: runtime: taxonomy comment)
+        FAILOVER.md              (v0.3.2: cron section is now {{FAILOVER_CRON_SECTION}} placeholder)
   workspaces/                    (vault-project mode workspace files; unchanged)
     dev/CLAUDE.md
     analyst/CLAUDE.md

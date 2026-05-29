@@ -3,7 +3,14 @@ persona: {{PERSONA_NAME}}
 slug: {{PERSONA_SLUG}}
 archetype: autonomous-cron
 status: active
-runtime: schedule-skill
+# Runtime taxonomy (pick one):
+#   launchd-cron   — macOS launchd; per-runner machine; laptop must be on
+#   systemd-timer  — Linux systemd timer; per-runner machine; laptop must be on
+#   cloud-routine  — Anthropic-hosted /schedule routine; always-on
+#   gh-actions-cron — GitHub Actions scheduled workflow; always-on
+# The skill selects the right FAILOVER cron section template based on this field
+# (if the persona has an emitted FAILOVER.md).
+runtime: {{PERSONA_RUNTIME}}
 cadence: {{CRON_CADENCE}}
 default_runner: {{DEFAULT_RUNNER_HANDLE}}
 created: {{YYYY-MM-DD}}

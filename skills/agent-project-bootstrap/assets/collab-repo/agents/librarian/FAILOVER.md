@@ -45,16 +45,9 @@ Cadence: {{LIBRARIAN_CRON_CADENCE}} (matching the default).
 
 Also post in the team's async channel (Slack, Discord, etc.) so anyone offline still hears about it.
 
-### 2. Enable the cron on your machine
+{{FAILOVER_CRON_SECTION}}
 
-In Claude Code, use the `/schedule` skill to set up the cron. The schedule should match the project's documented cadence (`{{LIBRARIAN_CRON_CADENCE}}` — see `AGENT.md`).
-
-```
-/schedule cron='{{LIBRARIAN_CRON_CADENCE}}' \
-  task='Run the {{PROJECT_NAME}} Librarian per agents/librarian/AGENT.md. Pull collab repo, ingest new findings/handoffs/decisions/dev-logs into wiki/, push.'
-```
-
-Your `/schedule` setup runs on YOUR machine — when your machine is on. There's no shared runtime; the Librarian is wherever the cron is.
+> The cron section above is per-runtime. The Librarian's runtime is declared in `agents/librarian/AGENT.md` frontmatter `runtime:` field. Supported values: `launchd-cron` (macOS), `systemd-timer` (Linux), `cloud-routine` (Anthropic-hosted), `gh-actions-cron` (GitHub Actions). The skill picks the right snippet at scaffold time. If you need to change runtimes, update `runtime:` in `AGENT.md` and re-run `./workspace-template/setup.sh librarian` to regenerate the cron stub.
 
 ### 3. Set git identity to the Librarian persona on your machine's collab-repo clone
 

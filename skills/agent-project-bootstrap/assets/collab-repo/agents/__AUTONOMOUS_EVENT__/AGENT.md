@@ -3,7 +3,9 @@ persona: {{PERSONA_NAME}}
 slug: {{PERSONA_SLUG}}
 archetype: autonomous-event
 status: active
-runtime: github-actions
+# Runtime taxonomy for event-triggered personas — typically gh-actions-event.
+# (See agents/__AUTONOMOUS_CRON__/AGENT.md for the full taxonomy comment.)
+runtime: gh-actions-event
 trigger: {{TRIGGER_EVENTS}}
 created: {{YYYY-MM-DD}}
 ---
