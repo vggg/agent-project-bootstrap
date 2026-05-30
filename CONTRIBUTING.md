@@ -2,7 +2,9 @@
 
 ## Scope
 
-Refinements to the existing pattern are welcome. If you want to explore a fundamentally different direction — different agent archetypes, non-Obsidian vault integrations, orchestrator-based patterns — fork this and publish a separate skill rather than expanding this one's scope.
+Refinements to the multi-agent pattern emitted by this skill are welcome. Pattern evolution is governed by the ADR process (`docs/adr/`); see [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for the v1.0 direction (runtime-agnostic spec + adapters for Claude Code, code-puppy, and a generic Tier-1 fallback).
+
+If you want to explore a fundamentally different vault integration (e.g. non-Obsidian), fork this and publish a separate skill rather than expanding this one's scope.
 
 ## Before opening a PR
 
@@ -23,10 +25,12 @@ Open an issue first describing what you want to change and why. Small fixes (typ
 - Reference documentation (`references/design-decisions.md`, `references/obsidian-setup.md`)
 - Persona files (`assets/vault/_meta/PERSONAS/`)
 - Bug fixes and leak prevention
+- Runtime adapters per ADR-001 (`adapters/<runtime>/HYDRATE.md` and supporting canonical files)
+- Persona archetypes per ADR-001 (dev / autonomous-event / autonomous-cron / librarian, plus future archetypes the spec defines)
+- ADR amendments (PRs against `docs/adr/`)
 
 ## What's out of scope
 
-- New agent archetypes beyond Iris / Dev-1 / Dev-2 / Analyst / Designer
 - Self-modifying or self-updating skill behaviour
 - Non-Obsidian vault integrations (publish a separate skill for this)
 - Changes to the release or sync workflow (those are vault-side decisions)

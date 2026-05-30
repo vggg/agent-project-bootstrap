@@ -88,6 +88,16 @@ deterministically — (1) by the *agent's own runtime capabilities*, (2) by the 
 the target directory*. The human should only ever say *"set up a project"* or
 *"join this repo."*
 
+### 2.4 Concrete forcing function
+
+This is not a speculative architecture. Vikram's work environment uses **code-puppy**
+(Claude Opus 4.8 backed) as its coding-agent runtime — Claude Code is not available at
+work, and real work projects are queued that need the multi-agent pattern to run there.
+The home stack stays on Claude Code. ADR-001 v1.0 must let the same
+`agent-project-bootstrap` artifact emit projects that run on **both** runtimes. Codex /
+Wibey / future runtimes are post-1.0 — naturally supported by the architecture but not
+v1.0 acceptance criteria.
+
 ---
 
 ## 3. Decision
@@ -250,7 +260,8 @@ they happen to have. Everything else is self-determined.
 - **Primary gap:** cron/`/schedule`/failover wiring has no universal equivalent. The
   orchestrator can still *emit* failover runbooks + cron stubs (launchd/systemd/GH-Actions),
   but cannot guarantee a live scheduled runtime. (See §7.)
-- **Verdict:** low risk, high fidelity. Build first.
+- **Verdict:** low risk, high fidelity. Build *after* one participant adapter is
+  validated end-to-end (see updated §10 — sequencing flipped to adapter-first per §2.4).
 
 ### 6.2 Role 2 — Participant
 
@@ -287,8 +298,10 @@ they happen to have. Everything else is self-determined.
    generate `.md` from `.yaml` (single source) or have the Librarian drift-check them.
    **Recommendation:** `.yaml` is canonical; `.md` is generated/derived.
 5. **Vault-project mode.** Does the neutral model also cover the lean `vault-project`
-   pattern, or is v1 scoped to `collab-repo-project` + `join`? **Recommendation:** scope
-   v1 to collab-repo + join; fold vault-mode in later.
+   pattern, or is v1 scoped to `collab-repo-project` + `join`? **Recommendation
+   (updated per §2.4):** vault-project mode stays on v0.3.x rails during v1.0.
+   Re-integration with the runtime-agnostic architecture is post-1.0. This keeps the
+   home Iris stack stable while v1.0 ships the bi-runtime story.
 6. **Distribution.** Is the runtime-agnostic artifact a "skill" (Puppy/Claude), a plain
    git template repo, or both? A plain template repo is the most runtime-neutral; skills
    can wrap it per-runtime.
@@ -327,19 +340,28 @@ they happen to have. Everything else is self-determined.
 
 ## 10. Proposed execution plan (post-approval)
 
-1. **Define the capability vocabulary** (small, documented, versioned). *(blocks adapters)*
-2. **Author the canonical contract:** `AGENTS.md`, `ORCHESTRATE.md`, `PARTICIPATE.md`
-   (with the capability ladder), `manifest.yaml` schema, `persona.yaml` schema.
-3. **De-Claude the neutral docs:** scrub tool names / MCP / CLAUDE.md from
+**Sequencing principle (revised — supersedes earlier draft):** adapter-first, derive
+spec from observed use. The earlier spec-first ordering risked months of design before
+validation; the forcing function in §2.4 makes adapter-first the right call.
+
+1. **Write `adapters/code-puppy/HYDRATE.md` end-to-end for ONE persona** (dev
+   archetype, since code-puppy at work runs dev work), targeting a real work project.
+2. **Ship that work project on code-puppy.** Validate the adapter against real use,
+   not a throwaway. This is the v1.0 critical path.
+3. **Derive the canonical contract from observed needs:** capability vocabulary,
+   `persona.yaml` schema, `manifest.yaml` schema, `START.md`, `ORCHESTRATE.md`,
+   `PARTICIPATE.md`. The empirical adapter teaches the spec more than the spec teaches
+   the adapter.
+4. **Write `adapters/generic/HYDRATE.md`** (mandatory Tier-1 fallback) to match what
+   code-puppy needed.
+5. **Write `adapters/claude/HYDRATE.md`** — initially Tier-2 (CLAUDE.md rendering,
+   mirroring v0.3.x for home compatibility). Claude Tier-3 (subagents) defers to v1.1.
+6. **De-Claude the neutral docs:** scrub tool names / MCP / CLAUDE.md from
    `CONVENTIONS.md`, `COORDINATION.md`.
-4. **Write `adapters/generic/HYDRATE.md`** (mandatory Tier-1 fallback).
-5. **Write `adapters/code-puppy/HYDRATE.md`** (first reference Tier-3 adapter).
-6. **Migrate one or two personas end-to-end** as a vertical slice (e.g. `dave` dev
-   alone, or `dave` + `librarian` as a coupled pair).
-7. **Dogfood Role 1** (orchestrate a throwaway project) then **Role 2** (join it) with
-   Code Puppy; validate the ladder picks Tier 3.
-8. **Defer:** cron/failover live wiring, vault-project mode, additional adapters
-   (claude/codex/wibey).
+7. **Cut v1.0 release.** Acceptance: home (Claude Code) + work (code-puppy) both
+   producing equivalent project shapes from the same spec.
+8. **Defer to post-1.0:** Claude Tier-3 subagent rendering, vault-project mode
+   re-integration, cron/failover live wiring, additional adapters (Codex, Wibey, etc.).
 
 ---
 
