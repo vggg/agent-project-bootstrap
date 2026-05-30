@@ -129,9 +129,11 @@ editor-specific choice forced on the user.
 No human picks a mode. The **directory state** and the **agent's capabilities** decide.
 
 ```
-AGENTS.md       ← neutral front door (emerging cross-tool convention).
-                  "Empty/new target  → read ORCHESTRATE.md
-                   Existing collab    → read PARTICIPATE.md"
+START.md        ← neutral front door read first in any fresh checkout.
+                  (Distinct from runtime-native files like CLAUDE.md or AGENTS.md
+                   that adapters write per Tier 2 — see §4.3.)
+                  Says: "Empty/new target  → read ORCHESTRATE.md
+                          Existing collab    → read PARTICIPATE.md"
 ORCHESTRATE.md  ← Role 1 recipe: set up a NEW project (runtime-neutral, deterministic).
 PARTICIPATE.md  ← Role 2 recipe: join/operate + the capability ladder (below).
 ```
@@ -204,7 +206,7 @@ folder, touch nothing else (**Open/Closed Principle** for runtimes).
 ### 4.6 Resulting repo shape
 
 ```
-AGENTS.md                 ← neutral front door: self-select role
+START.md                  ← neutral front door: self-select role
 ORCHESTRATE.md            ← Role 1 recipe (runtime-neutral)
 PARTICIPATE.md            ← Role 2 recipe + capability ladder
 CONVENTIONS.md            ← already neutral (minor de-Claude-ing)
@@ -228,7 +230,7 @@ _handoff/  decisions/  findings/  wiki/   ← unchanged patterns
 
 | Decision that used to need a human | Resolved by |
 |---|---|
-| Orchestrate or participate? | **Directory state** (empty vs. populated) → `AGENTS.md` routes |
+| Orchestrate or participate? | **Directory state** (empty vs. populated) → `START.md` routes |
 | Markdown persona vs. real sub-agent? | **Agent's own capability detection** → climbs the ladder |
 | Which runtime's quirks apply? | **`adapters/<runtime>/`** — agent reads its own folder |
 | Fill `{{placeholders}}`? | **Orchestrator interviews** the user and writes final values |
@@ -256,8 +258,12 @@ they happen to have. Everything else is self-determined.
 - **2a Onboarding** (clone, claim persona, set git identity, hello-PR): easy; pure
   shell + file edits.
 - **2b Operating as a persona:** the ladder lets each runtime operate at its best tier.
-  Tier-3 runtimes gain *enforced* tool scoping (a genuine upgrade over Claude's
-  trust-the-markdown model).
+  Tier-3 *adapter renderings* gain *enforced* tool scoping (a genuine upgrade over the
+  Tier-2 markdown rendering used by today's v0.3.x skill — including the existing
+  CLAUDE.md path). Note: Claude as a runtime supports *both* Tier 2 (CLAUDE.md) and
+  Tier 3 (subagents); the v1 Claude adapter should render Tier 3 to deliver the upgrade.
+  Each adapter author chooses which tier to render when multiple are available — this
+  is an open design question (how to pick).
 - **Primary gap:** autonomous/cron personas as *unattended* runtimes still need external
   scheduling. As *interactive* agents they are fine. (See §7.)
 - **Verdict:** achievable and arguably better; the ladder removes the only decision that
@@ -276,7 +282,7 @@ they happen to have. Everything else is self-determined.
    and version it. Risk: vocabulary churn invalidates adapters.
 3. **Adapter discovery.** How does an agent know its own "runtime key" (`code-puppy`,
    `claude`, …)? Proposal: each runtime self-identifies; if it has no matching adapter
-   folder, it MUST fall back to `generic`. Document the known keys in `AGENTS.md`.
+   folder, it MUST fall back to `generic`. Document the known keys in `START.md`.
 4. **`persona.yaml` vs. `AGENT.md` drift.** Two representations of one persona. Either
    generate `.md` from `.yaml` (single source) or have the Librarian drift-check them.
    **Recommendation:** `.yaml` is canonical; `.md` is generated/derived.
@@ -306,7 +312,8 @@ they happen to have. Everything else is self-determined.
 ### Positive
 - No runtime lock-in; new runtimes added via a single adapter folder.
 - Human burden reduced to two verbs: *orchestrate* / *participate*.
-- Tier-3 runtimes gain enforced guardrails (better than trust-the-markdown).
+- Tier-3 adapter renderings gain enforced guardrails (better than Tier-2 markdown
+  rendering, which is what v0.3.x ships today via CLAUDE.md).
 - Canon stays clean; all runtime quirks quarantined in `adapters/`.
 
 ### Negative / costs
@@ -327,7 +334,8 @@ they happen to have. Everything else is self-determined.
    `CONVENTIONS.md`, `COORDINATION.md`.
 4. **Write `adapters/generic/HYDRATE.md`** (mandatory Tier-1 fallback).
 5. **Write `adapters/code-puppy/HYDRATE.md`** (first reference Tier-3 adapter).
-6. **Migrate one persona end-to-end** (e.g. `dave` dev + `librarian`) as a vertical slice.
+6. **Migrate one or two personas end-to-end** as a vertical slice (e.g. `dave` dev
+   alone, or `dave` + `librarian` as a coupled pair).
 7. **Dogfood Role 1** (orchestrate a throwaway project) then **Role 2** (join it) with
    Code Puppy; validate the ladder picks Tier 3.
 8. **Defer:** cron/failover live wiring, vault-project mode, additional adapters
