@@ -1,8 +1,10 @@
 ---
 created: 2026-05-29
+accepted: 2026-05-30
 type: decision
-status: proposed
-decided_by: pending
+status: accepted
+decided_by: Vikram
+canonical: https://github.com/vggg/agent-project-bootstrap/blob/main/docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md
 project: multi-agent-setup
 adr: 001
 co_authors: [Vikram, code-puppy]
@@ -367,12 +369,20 @@ validation; the forcing function in §2.4 makes adapter-first the right call.
 
 ## 11. Decision record
 
-- [ ] Approved as written
+- [x] Approved as written
 - [ ] Approved with changes (note below)
 - [ ] Needs revision
 - [ ] Rejected
 
-**Reviewer notes:**
+**Reviewer notes (Vikram, 2026-05-30, recorded via Iris):**
 
->
->
+> Accepted on the strength of the concrete forcing function added in §2.4: work
+> environment runs code-puppy (Claude Opus 4.8), Claude Code unavailable at work,
+> real work projects queued. v1.0 critical path is bi-runtime (Claude Code +
+> code-puppy); other runtimes post-1.0. Two internal contradictions surfaced
+> during local review were fixed pre-merge: AGENTS.md → START.md rename
+> (resolves triple-duty); Tier-3 framing clarified (runtime capability vs.
+> adapter rendering choice). Execution per updated §10: adapter-first; derive
+> spec from observed use against a real work project. Canonical now lives in
+> `vggg/agent-project-bootstrap/docs/adr/`; this vault file becomes a pointer
+> stub on merge.
