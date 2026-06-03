@@ -20,7 +20,7 @@ related:
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted (2026-05-30) |
 | **Date** | 2026-05-29 |
 | **Authors** | Vikram + Puppy 🐶 |
 | **Supersedes** | — |

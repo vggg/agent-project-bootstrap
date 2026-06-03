@@ -17,6 +17,30 @@ Open an issue first describing what you want to change and why. Small fixes (typ
 3. Invoke in a throwaway directory: ask Claude to use the `agent-project-bootstrap` skill to set up a test project.
 4. Verify the emitted files match your intended changes and all placeholders resolve correctly.
 
+For PRs touching adapters, references, or the v1.0 canonical contract files, also run the bi-runtime acceptance test before pushing:
+
+```bash
+python tests/bi_runtime_accept.py
+```
+
+It validates that one `persona.yaml` hydrates to an equivalent behavior contract on both Claude Code and code-puppy adapters.
+
+## Documentation is part of every PR
+
+A PR that ships behavior, structure, or developer-experience changes without updating the relevant docs is not done. Same PR — not a follow-up.
+
+Checklist (apply each line if relevant to the change):
+
+- [ ] **Affected ADRs** — status frontmatter AND body headers reflect reality (no internal inconsistency between `status:` and the table header)
+- [ ] **`CLAUDE.md`** — updated if conventions / layout / repo rules / canonicality changed
+- [ ] **`README.md`** — updated if user-facing usage / modes / version / installation changed
+- [ ] **`CHANGELOG.md`** — one line per PR minimum, under `[Unreleased]` between releases
+- [ ] **`STATUS.md`** — mark multi-step plan progress (e.g. ADR-001 §10 step N done)
+
+Reviewers must request docs before merging, not after.
+
+**Exception:** strictly cosmetic single-file changes (typo fixes, broken link updates, status syncs) may skip the broader checklist — but still update `CHANGELOG.md` under `[Unreleased]`.
+
 ## What's in scope
 
 - Template content and wording improvements
