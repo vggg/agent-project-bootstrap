@@ -124,6 +124,9 @@ See [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for th
 
 > The `/plugin install` command syntax may evolve as Claude Code matures. If the above fails, check the [Claude Code docs](https://docs.anthropic.com/claude-code) for the current install command format.
 
+> **On code-puppy?** It doesn't auto-discover the Claude skill format — see
+> [`USING-WITH-CODE-PUPPY.md`](USING-WITH-CODE-PUPPY.md) for the invoke-by-file-path quickstart.
+
 ## Usage
 
 After installation, tell Claude something like:

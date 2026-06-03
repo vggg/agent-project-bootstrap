@@ -1,0 +1,73 @@
+# Using with code-puppy
+
+This repo is packaged as a **Claude Code** plugin/skill (`skills/agent-project-bootstrap/SKILL.md`,
+`.claude-plugin/`). **code-puppy does not auto-discover that skill format** — if you point
+code-puppy at this repo and ask it to "use the skill", it will look for its own skill registry
+and report that it can't find a `SKILL.md` it understands.
+
+That's expected. The runtime-agnostic v1.0 design means you don't need the skill wrapper at all:
+the instructions are plain markdown that any runtime can read and follow. This guide shows the
+code-puppy path (Tier 3 — capabilities are *enforced* via a tool allow-list).
+
+> Native code-puppy skill packaging is tracked as a follow-up. Until then, invoke by file path
+> as below.
+
+## TL;DR
+
+```bash
+git clone https://github.com/vggg/agent-project-bootstrap
+cd <your-collab-repo>          # start code-puppy FROM the project root (see Why below)
+```
+
+Then tell code-puppy:
+
+> Read these files from the cloned repo, in order, then follow them to bootstrap a new
+> `collab-repo-project`:
+> 1. `agent-project-bootstrap/skills/agent-project-bootstrap/assets/collab-repo/START.md`
+> 2. `agent-project-bootstrap/skills/agent-project-bootstrap/assets/collab-repo/ORCHESTRATE.md`
+> 3. `agent-project-bootstrap/skills/agent-project-bootstrap/assets/collab-repo/adapters/code-puppy/HYDRATE.md`
+>
+> Use the schemas in `agent-project-bootstrap/skills/agent-project-bootstrap/references/`
+> (`capability-vocab.v1.md`, `persona.schema.md`, `manifest.schema.md`) as the canonical contract.
+
+code-puppy reads those, identifies its runtime as `code-puppy`, routes (new dir → `ORCHESTRATE`),
+and hydrates each persona via the adapter — no skill discovery needed.
+
+## Key file map
+
+| Purpose | Path (under repo root) |
+|---|---|
+| Front door / router | `skills/agent-project-bootstrap/assets/collab-repo/START.md` |
+| Role 1 — bootstrap a new project | `skills/agent-project-bootstrap/assets/collab-repo/ORCHESTRATE.md` |
+| Role 2 — join an existing project | `skills/agent-project-bootstrap/assets/collab-repo/PARTICIPATE.md` |
+| code-puppy adapter (Tier 3) | `skills/agent-project-bootstrap/assets/collab-repo/adapters/code-puppy/HYDRATE.md` |
+| Capability vocabulary (frozen v1) | `skills/agent-project-bootstrap/references/capability-vocab.v1.md` |
+| Persona schema | `skills/agent-project-bootstrap/references/persona.schema.md` |
+| Manifest schema | `skills/agent-project-bootstrap/references/manifest.schema.md` |
+
+## Why start the session from the project root
+
+code-puppy discovers project-scoped sub-agents relative to its working directory. If you launch
+the session somewhere else, the personas it hydrates won't be found. `cd` into the collab repo
+root (your project's `paths.root`) **before** starting code-puppy. (This is `START.md` Step 3.)
+
+## What you'll be asked for
+
+- Project name + one-line description
+- Code repo URL + collab repo URL (remote-collab needs both as real repos)
+- Backlog source — a `backlog.md` file in the collab repo, or an issue tracker
+- Persona roster — at least one `dev` persona (think one per collaborator role)
+
+## Joining an existing project (other collaborators)
+
+Same idea, different recipe: clone the collab repo, start code-puppy from its root, and ask it
+to read `START.md` → `PARTICIPATE.md` → `adapters/code-puppy/HYDRATE.md`. Claim a persona, set
+your git identity, and validate with a "hello" PR.
+
+## Enforcement note (why Tier 3 matters)
+
+On code-puppy, a persona's `capabilities.allow` is mapped to an **enforced** tool allow-list:
+tools that aren't granted are not registered, so denials at whole-tool granularity genuinely
+hold (e.g. a read-only reviewer that *cannot* write). Sub-tool denials (e.g. allow `open_pr`,
+deny `merge_pr` — both ride `agent_run_shell_command`) remain instruction-level. If you need a
+collaborator's guardrails to be hard-enforced, run them on code-puppy rather than a Tier-2 runtime.
