@@ -14,6 +14,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `adapters/generic/HYDRATE.md` (L3). Minimum-viable by design; the comprehensive §10.2
   self-hosting outcome notes remain a tracked v1.0 close-out item in `STATUS.md`.
 
+### Changed — de-Claude the emitted `COORDINATION.md` (ADR §10.6, finishes Step 6)
+
+- Removed the three runtime-isms from the emitted `COORDINATION.md` template, mirroring PR #7's
+  treatment of `CONVENTIONS.md`:
+  - **Session-start checklist** — replaced the `git pull` / `grep` / `gh issue list` bash blocks
+    with intent-level steps that point at `adapters/<runtime>/HYDRATE.md` for concrete syntax and
+    `references/capability-vocab.v1.md` for the verbs.
+  - **Ticket lifecycle** — abstracted the `gh issue edit … --add-assignee/--add-label`
+    self-assignment to backlog-source language (`gh` is one runtime's shell, not the canon).
+  - **Async handoff protocol** — generalized the Iris-specific "personal librarian" paragraph to
+    any librarian-equivalent persona (`for: librarian`), and dropped the Obsidian-specific "vault"
+    wording. Runtime-neutral, matching the canon. Cosmetic for existing scaffolds (no behavior
+    change).
+
 ### Changed — meta-docs refresh for v1.0 development surface
 
 - **`CLAUDE.md` rewritten** to reflect the post-ADR-001 reality: this repo is the canonical home and active development surface for v1.0+; the v0.x "vault canonical, repo snapshot" rule is sunset. Updates repo layout, persona expectation for a fresh agent landing in the repo, and release workflow.

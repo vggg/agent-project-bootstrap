@@ -15,9 +15,9 @@ The runtime-agnostic milestone is **RELEASED** (v1.0.0 + v1.0.1).
 - [x] **Step 3** — Derive the canonical contract from observed needs. *Shipped.* References at `skills/agent-project-bootstrap/references/{capability-vocab.v1, persona.schema, manifest.schema}.md`; neutral entrypoints at `skills/agent-project-bootstrap/assets/collab-repo/{START, ORCHESTRATE, PARTICIPATE}.md`.
 - [x] **Step 4** — Write `adapters/generic/HYDRATE.md` (Tier-1 fallback). *Shipped.*
 - [x] **Step 5** — Write `adapters/claude/HYDRATE.md` (Tier 2 — CLAUDE.md rendering). *Shipped.* Note: Tier-3 (Claude subagents) deferred to v1.1 per §10.8.
-- [~] **Step 6** — De-Claude the neutral docs.
+- [x] **Step 6** — De-Claude the neutral docs.
   - [x] `skills/agent-project-bootstrap/assets/collab-repo/CONVENTIONS.md` (PR #7)
-  - [ ] `skills/agent-project-bootstrap/assets/collab-repo/COORDINATION.md` — **still TBD**
+  - [x] `skills/agent-project-bootstrap/assets/collab-repo/COORDINATION.md` (PR #10)
 - [x] **Step 7** — Cut v1.0 release. *Shipped 2026-06-03 (v1.0.0 + v1.0.1).*
 - [ ] **Step 8** — Deferred items (post-1.0). See "v1.1+ candidates" below.
 
@@ -25,7 +25,7 @@ The runtime-agnostic milestone is **RELEASED** (v1.0.0 + v1.0.1).
 
 These finish v1.0 but didn't block the release:
 
-- **§10.6 — de-Claude `COORDINATION.md`.** Apply the same treatment PR #7 gave to `CONVENTIONS.md`: replace runtime tool names with capability-level language; point at `adapters/<runtime>/HYDRATE.md` and `references/capability-vocab.v1.md`. The emitted COORDINATION doc should match the canon in tone and runtime-neutrality.
+- ~~**§10.6 — de-Claude `COORDINATION.md`.**~~ **Done (PR #10).** Session-start checklist now states intent (capabilities, not shell commands) and points at `adapters/<runtime>/HYDRATE.md`; the `gh issue edit` self-assignment was abstracted to backlog-source language; the Iris-specific personal-librarian paragraph was generalized to any librarian-equivalent persona. Matches the canon's tone and the PR #7 treatment of `CONVENTIONS.md`.
 - **§10.2 — outcome notes from the self-hosting validation.** *(partial)* `docs/LEARNINGS.md` now exists as a minimum-viable lessons index (L1–L3, Proven #1–#2) and resolves the references that cited it. **Still TBD:** the comprehensive outcome notes — which capability verbs surfaced from observed need (vs. designed up-front), where the spec held up well, where it bent, what was discarded as YAGNI. This is the empirical-backbone evidence the §10 plan promises; the minimal index is not a substitute for it.
 - **Adapter location interpretation.** Implementation puts adapters at `skills/agent-project-bootstrap/assets/collab-repo/adapters/` (emit-time templates that copy to `<target-project>/adapters/` at scaffold time). ADR §4.6's "Resulting repo shape" diagram shows `adapters/` at repo root — which describes the EMITTED PROJECT's structure, not this repo's. The two are consistent, but the ADR diagram is ambiguous. Either amend the diagram caption to make this explicit OR add a clarifying paragraph in §4.6. No code move needed.
 
