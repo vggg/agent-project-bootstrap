@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — "Vault commit" / `/vc` guidance for code-puppy
+
+- `USING-WITH-CODE-PUPPY.md`: new section explaining that `/vc` is a Claude slash command
+  code-puppy doesn't recognize, with two equivalents — the emitted `/vc-<slug>` project command,
+  or describing the commit workflow in plain language (both produce the canonical
+  `<persona>: <op> | <description>` commit + push).
+
 ### Added — `USING-WITH-CODE-PUPPY.md` quickstart
 
 - New top-level guide for running the bootstrap on code-puppy, which does not auto-discover the
