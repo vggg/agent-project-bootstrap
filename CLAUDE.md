@@ -74,7 +74,7 @@ STATUS.md                 # v1.0 close-out + v1.1 progress tracker
 
 Semver. Patch (0.0.x): wording fixes, typos, broken references. Minor (0.x.0): new placeholders, new template sections, structural improvements. Major (x.0.0): breaking changes to the emit process or file layout.
 
-v1.0.0 (2026-06-03) is the runtime-agnostic milestone. v1.1+ tracks the deferred items in ADR-001 §10.8 (notably Claude Tier-3 subagent rendering) and v1.0 close-out work.
+v1.0.0 (2026-06-03) is the runtime-agnostic milestone. **v1.1 adds Claude Tier-3 subagent rendering** (the Claude adapter now renders either Tier 2 `CLAUDE.md` or a Tier-3 native subagent with an enforced `tools:` allow-list, selected by the runtime-neutral `adapters.claude.tier` config). v1.1+ continues to track the remaining ADR-001 §10.8 deferred items (vault-project re-integration, cron/failover live wiring, additional adapters) and v1.0 close-out work.
 
 ## Release workflow
 

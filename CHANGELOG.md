@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — Claude Tier-3 subagent rendering (ADR-001 §10.8; v1.1 feature)
+
+- **`adapters/claude/HYDRATE.md` now renders BOTH tiers from one configurable adapter** (not
+  two folders):
+  - **Tier 3 (new)** — hydrates a persona into a native Claude **subagent** at
+    `.claude/agents/<slug>.md` with an **enforced** `tools:` allow-list. Whole-tool denials
+    become real (a read-only persona gets `Read, Grep, Glob` only; `Write`/`Edit`/`Bash` are
+    absent and unavailable). Sub-tool denials (e.g. allow `open_pr`, deny `merge_pr`) stay
+    instruction-only in the body — same honesty boundary the code-puppy adapter documents.
+  - **Tier 2** — unchanged `CLAUDE.md` rendering (capabilities instructed).
+  - Capability → Claude tool mapping for the enforced layer: `read_*`→`Read,Grep,Glob`;
+    `write_code`/`write_path`→`Write,Edit`; `open_pr`/`run_tests`→`Bash`.
+- **Tier selection via a runtime-neutral `adapters.<runtime>` config envelope** (keeps the
+  canonical schemas free of runtime tool names):
+  - `manifest.adapters.claude.tier` — project default (`auto` | `2` | `3`, default `auto`).
+  - `persona.yaml > runtime.adapters.claude.tier` — per-persona override.
+  - `auto` self-assesses subagent support and degrades to Tier 2 when the session can't host
+    subagents (CI / constrained sub-sessions). Explicit `2`/`3` always wins.
+- **Schemas** (`manifest.schema.md`, `persona.schema.md`) gain the optional `adapters.<runtime>`
+  / `runtime.adapters.<runtime>` override envelope (v1.1; additive, forward-compatible).
+- **`tests/bi_runtime_accept.py`** extended: the same harness now asserts code-puppy (Tier 3) ≡
+  Claude Tier 2 ≡ Claude Tier 3 produce an identical behavior contract — not a second
+  top-level test. Both fixtures (dev `tess`, read-only `rex`) pass.
+- **ADR-001** §10.5 / §10.8 updated (Tier-3 shipped; config-location rationale recorded).
+
 ### Fixed — correct the bi-runtime test invocation in docs
 
 - The documented command `python tests/bi_runtime_accept.py` fails with `ModuleNotFoundError:

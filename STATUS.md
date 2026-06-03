@@ -14,7 +14,7 @@ The runtime-agnostic milestone is **RELEASED** (v1.0.0 + v1.0.1).
 - [~] **Step 2** — Ship work project on code-puppy; validate adapter against real use. *Self-hosting underway — code-puppy has been doing the v1.0 implementation on this very repo (PRs #2, #4, #7, #8). The `tests/bi_runtime_accept.py` harness exercises the contract automatically; the "outcome notes" writeup (what worked, what didn't, what vocabulary surfaced from observed need) hasn't been authored yet.*
 - [x] **Step 3** — Derive the canonical contract from observed needs. *Shipped.* References at `skills/agent-project-bootstrap/references/{capability-vocab.v1, persona.schema, manifest.schema}.md`; neutral entrypoints at `skills/agent-project-bootstrap/assets/collab-repo/{START, ORCHESTRATE, PARTICIPATE}.md`.
 - [x] **Step 4** — Write `adapters/generic/HYDRATE.md` (Tier-1 fallback). *Shipped.*
-- [x] **Step 5** — Write `adapters/claude/HYDRATE.md` (Tier 2 — CLAUDE.md rendering). *Shipped.* Note: Tier-3 (Claude subagents) deferred to v1.1 per §10.8.
+- [x] **Step 5** — Write `adapters/claude/HYDRATE.md` (Tier 2 — CLAUDE.md rendering). *Shipped.* Tier-3 (Claude native subagents, enforced `tools:` allow-list) **shipped in v1.1** as one configurable adapter — see "v1.1 — shipped" below.
 - [x] **Step 6** — De-Claude the neutral docs.
   - [x] `skills/agent-project-bootstrap/assets/collab-repo/CONVENTIONS.md` (PR #7)
   - [x] `skills/agent-project-bootstrap/assets/collab-repo/COORDINATION.md` (PR #12)
@@ -29,9 +29,12 @@ These finish v1.0 but didn't block the release:
 - **§10.2 — outcome notes from the self-hosting validation.** *(partial)* `docs/LEARNINGS.md` now exists as a minimum-viable lessons index (L1–L3, Proven #1–#2) and resolves the references that cited it. **Still TBD:** the comprehensive outcome notes — which capability verbs surfaced from observed need (vs. designed up-front), where the spec held up well, where it bent, what was discarded as YAGNI. This is the empirical-backbone evidence the §10 plan promises; the minimal index is not a substitute for it.
 - **Adapter location interpretation.** Implementation puts adapters at `skills/agent-project-bootstrap/assets/collab-repo/adapters/` (emit-time templates that copy to `<target-project>/adapters/` at scaffold time). ADR §4.6's "Resulting repo shape" diagram shows `adapters/` at repo root — which describes the EMITTED PROJECT's structure, not this repo's. The two are consistent, but the ADR diagram is ambiguous. Either amend the diagram caption to make this explicit OR add a clarifying paragraph in §4.6. No code move needed.
 
+## v1.1 — shipped
+
+- [x] **Claude Tier-3 subagent rendering.** `adapters/claude/HYDRATE.md` now renders BOTH tiers from one configurable adapter: Tier 2 (`CLAUDE.md`, instructed) and Tier 3 (native subagent at `.claude/agents/<slug>.md` with an enforced `tools:` allow-list — whole-tool denials are real; sub-tool denials stay instructed, matching the code-puppy contract). Tier resolved from a **runtime-neutral** `adapters.claude.tier` config (`auto` | `2` | `3`, default `auto`; project default in `manifest.adapters.claude.tier`, per-persona override in `persona.yaml > runtime.adapters.claude.tier`). `auto` self-assesses subagent support and degrades to Tier 2 gracefully. `tests/bi_runtime_accept.py` asserts code-puppy ≡ Claude-Tier-2 ≡ Claude-Tier-3 for both fixtures. Config-location decision (namespaced envelope vs. bare `claude_tier`) recorded in ADR-001 §10.8 amendment.
+
 ## v1.1+ candidates (per ADR §10.8 deferred list)
 
-- **Claude Tier-3 subagent rendering.** Currently the Claude adapter renders Tier 2 (CLAUDE.md). Tier 3 means hydrating `persona.yaml` into native Claude subagents with enforced tool allow-lists. Requires updates to `adapters/claude/HYDRATE.md` + acceptance test extension (`tests/bi_runtime_accept.py` should validate both tiers per the adapter's declared mode).
 - **vault-project mode re-integration.** v1.0 left vault-project on v0.3.x rails. Bringing it under the runtime-agnostic architecture means either porting it to use the `persona.yaml` + adapter pattern, or formally deprecating it.
 - **Cron / failover live wiring.** v1.0 emits cron stubs and failover runbooks but doesn't wire schedulers automatically. Cross-runtime cron auto-registration is real engineering work.
 - **Additional adapters** — Codex, Wibey, etc. Add when there's a forcing function (a real project on that runtime).
