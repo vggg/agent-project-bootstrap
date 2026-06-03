@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — `docs/LEARNINGS.md` (minimum-viable lessons index)
+
+- **`docs/LEARNINGS.md` (new)** captures the ADR-001 §10 dogfood lessons (`L1`–`L3`) and proven
+  rules (`Proven #1`–`#2`). Resolves four previously dangling references — in
+  `references/capability-vocab.v1.md` (proven #2, L3), `adapters/claude/HYDRATE.md` (L3), and
+  `adapters/generic/HYDRATE.md` (L3). Minimum-viable by design; the comprehensive §10.2
+  self-hosting outcome notes remain a tracked v1.0 close-out item in `STATUS.md`.
+
 ### Changed — meta-docs refresh for v1.0 development surface
 
 - **`CLAUDE.md` rewritten** to reflect the post-ADR-001 reality: this repo is the canonical home and active development surface for v1.0+; the v0.x "vault canonical, repo snapshot" rule is sunset. Updates repo layout, persona expectation for a fresh agent landing in the repo, and release workflow.
