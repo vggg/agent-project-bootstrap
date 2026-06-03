@@ -36,11 +36,13 @@ adapter work and exercised on a real dogfood project (55%→100% coverage) — n
 - Purely additive. Existing v0.3.x scaffolds and invocations are unaffected.
 - Claude native sub-agents (Tier-3 at home) deferred to a follow-up (ADR §10.8).
 
-### Known follow-up
+### Changed — de-Claude the emitted `CONVENTIONS.md` (ADR §10.6)
 
-- `assets/collab-repo/CONVENTIONS.md` still contains Claude tool-name references (`Read/Write/
-  Edit/Bash`, Obsidian/MCP). A neutral template exists; de-Claude-ing the emitted convention
-  docs is tracked as a separate change (ADR §10.6) to keep this PR additive and reviewable.
+- Replaced the "Tool hierarchy" section's runtime tool names (`Read`/`Write`/`Edit`/`Bash`,
+  `gh` CLI) and the Obsidian/MCP note with capability-level language + a pointer to
+  `adapters/<runtime>/HYDRATE.md` and `references/capability-vocab.v1.md`. The emitted
+  convention doc is now runtime-neutral, matching the canon. Additive/cosmetic for existing
+  scaffolds (no behavior change).
 
 ## [0.3.2] — 2026-05-29
 

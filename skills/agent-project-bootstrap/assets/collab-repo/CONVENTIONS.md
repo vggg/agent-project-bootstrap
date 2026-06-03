@@ -40,18 +40,21 @@ Use wikilinks (`[[folder/filename]]`) for vault-internal references between file
 
 ---
 
-## Tool hierarchy
+## Capabilities, not tool names
 
-For working in this repo:
+Work in this repo is described as abstract CAPABILITIES, never a specific runtime's tools.
+Your runtime maps each capability to concrete tools via `adapters/<runtime>/HYDRATE.md`.
 
-| Task | Tool |
+| Task | Capability |
 |---|---|
-| Read or write a file | `Read` / `Write` / `Edit` at absolute paths |
-| Search content | `Bash` with `grep -r` |
-| Git operations | `Bash` |
-| GitHub work-state (issues, PRs) | `gh` CLI |
+| Read or write a file | `read_*` / `write_*` (see `references/capability-vocab.v1.md`) |
+| Search content | covered by `read_code` / `read_collab` |
+| Git operations | sub-tool of the runtime's shell capability |
+| Work-state (issues, PRs) | `open_pr` and the project's backlog source (see `manifest.yaml`) |
 
-Do not use Obsidian MCP tools — they are unreliable across environments. The repo is a plain Markdown filesystem.
+The repo is a plain Markdown filesystem — it does not depend on any runtime's vault plugin or
+integration layer. If your runtime offers such integrations, that is an adapter detail, not a
+project convention.
 
 ---
 
