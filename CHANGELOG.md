@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed — README reflects the v1.0 runtime-agnostic architecture
+
+- Rewrote the intro (no longer "a Claude Code plugin" only) and added a **Runtime support**
+  section documenting the capability ladder, adapters, neutral entrypoints, and the canonical
+  spec files. Points to ADR-001.
+
 ### Added — runtime-agnostic spec + adapters (ADR-001 implementation, v1.0)
 
 Implements ADR-001 (§10 phased rollout). The bootstrap pattern is no longer Claude-only: a
