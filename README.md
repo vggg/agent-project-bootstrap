@@ -1,6 +1,12 @@
 # agent-project-bootstrap
 
-A Claude Code plugin that scaffolds a multi-agent project setup from templates. As of **v0.3.2**, three modes are available:
+Scaffolds a multi-agent project setup from templates. **As of v1.0 the pattern is
+runtime-agnostic** (per [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md)):
+a single runtime-neutral `persona.yaml` hydrates working personas on whatever AI coding agent
+you run — Claude Code, code-puppy, or anything else — at the highest fidelity that runtime
+supports. It started as a Claude Code plugin and remains fully compatible with it.
+
+Three project modes are available:
 
 - **`vault-project`** — the original lean pattern. Vault-based five-agent project (librarian + two devs + analyst + designer), suitable for solo / local-team work where all collaborators share the same personal vault.
 - **`collab-repo-project`** — the **Option A** pattern. Emits a dedicated collab repo per project (CONVENTIONS, COORDINATION, agent manuals, handoffs, decisions, project wiki) separable from any personal vault. Designed for projects with multiple **remote** collaborators who shouldn't have access to each other's personal substrate.
@@ -83,6 +89,32 @@ Three persona archetypes are supported, distinguished by runtime:
 commands/
   vc.md                   # `/vc` — vault commit workflow with agent-prefix convention
 ```
+
+## Runtime support (v1.0, runtime-agnostic)
+
+Personas are defined once in a runtime-neutral `persona.yaml` (identity, abstract
+*capabilities*, scope, session ritual). Each runtime maps those abstract capabilities onto its
+real tools via an **adapter** — the only runtime-specific surface. Adding a runtime means
+adding an `adapters/<runtime>/` folder and touching nothing else.
+
+A persona always runs at the highest tier its runtime supports (the **capability ladder**),
+and degrades gracefully:
+
+| Tier | Runtime | Mechanism | Enforcement |
+|---|---|---|---|
+| 3 | code-puppy | native JSON sub-agents | capabilities enforced via a tool allow-list (sub-tool denials instructed) |
+| 2 | Claude Code | persistent `CLAUDE.md` | persistent context; capabilities instructed |
+| 1 | anything | in-prompt | persona re-read each turn; self-enforced |
+
+Key files:
+
+- `START.md` / `ORCHESTRATE.md` / `PARTICIPATE.md` — neutral entrypoints (front door + the two
+  role recipes; routing is by directory state, not a human choice).
+- `adapters/{generic,code-puppy,claude}/HYDRATE.md` — per-runtime mappings (`generic` is the
+  mandatory Tier-1 fallback).
+- `references/{capability-vocab.v1,persona.schema,manifest.schema}.md` — the canonical spec.
+
+See [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for the full design.
 
 ## Installation
 
