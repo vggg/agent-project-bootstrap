@@ -6,6 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — runtime-agnostic spec + adapters (ADR-001 implementation, v1.0)
+
+Implements ADR-001 (§10 phased rollout). The bootstrap pattern is no longer Claude-only: a
+single runtime-neutral `persona.yaml` hydrates working personas on any runtime, at the highest
+fidelity that runtime supports. Every capability verb and schema field was coined during real
+adapter work and exercised on a real dogfood project (55%→100% coverage) — nothing speculative
+(YAGNI).
+
+- **Neutral entrypoints** in `assets/collab-repo/`:
+  - `START.md` — front door; routes on directory state + documents runtime keys (§7.3).
+  - `ORCHESTRATE.md` — Role 1 (bootstrap a new project), runtime-neutral.
+  - `PARTICIPATE.md` — Role 2 (join a project) + the 3-tier capability ladder.
+- **Adapters** in `assets/collab-repo/adapters/<runtime>/HYDRATE.md` (the only runtime-specific
+  surface; Open/Closed for runtimes):
+  - `generic/` — Tier-1 fallback (MANDATORY): re-read `persona.yaml` each turn, self-enforce.
+  - `code-puppy/` — Tier-3: maps capabilities to enforced JSON sub-agent tool allow-lists.
+  - `claude/` — Tier-2: renders `persona.yaml` → `CLAUDE.md` + `/vc`, mirroring v0.3.x shape.
+- **Canonical spec docs** in `references/`: `capability-vocab.v1.md` (frozen 10-verb API),
+  `persona.schema.md`, `manifest.schema.md` (relative paths + configurable backlog source).
+- **`agents/__DEV__/persona.yaml`** — machine-truth companion to the existing `__DEV__/AGENT.md`
+  (yaml canonical, md derived).
+- **`tests/bi_runtime_accept.py`** — bi-runtime acceptance harness: proves one `persona.yaml`
+  yields an identical behavior contract (identity, capabilities, guardrails) on code-puppy +
+  Claude. Passes for both a `dev` and a read-only `reviewer` persona.
+
+### Compatibility
+
+- Purely additive. Existing v0.3.x scaffolds and invocations are unaffected.
+- Claude native sub-agents (Tier-3 at home) deferred to a follow-up (ADR §10.8).
+
+### Known follow-up
+
+- `assets/collab-repo/CONVENTIONS.md` still contains Claude tool-name references (`Read/Write/
+  Edit/Bash`, Obsidian/MCP). A neutral template exists; de-Claude-ing the emitted convention
+  docs is tracked as a separate change (ADR §10.6) to keep this PR additive and reviewable.
+
 ## [0.3.2] — 2026-05-29
 
 Same-day follow-up to v0.3.1, closing out the remaining items from [Decision 6](https://github.com/vggg/Irisidian/blob/main/projects/multi-agent-setup/decisions/2026-05-29-6-bootstrap-genesis-emission.md). All v0.3.1 invocations still work unchanged.
