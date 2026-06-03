@@ -20,24 +20,18 @@ Full operating manuals: `agents/<persona>/AGENT.md`.
 
 ## Session-start checklist
 
-Every persona, every session:
+Every persona, every session. These steps are stated as intent (capabilities, not a specific
+runtime's commands). Your runtime maps each to concrete syntax via
+`adapters/<runtime>/HYDRATE.md`; the capability verbs are defined in
+`references/capability-vocab.v1.md`.
 
-1. **Pull both repos:**
-   ```bash
-   git -C {{LOCAL_COLLAB_PATH}} pull origin main
-   git -C {{LOCAL_CODE_PATH}} pull origin main   # if you have code-repo write access
-   ```
+1. **Sync both repos** to the latest `main` — the collab repo (`{{LOCAL_COLLAB_PATH}}`) and, if
+   you have code-repo write access, the code repo (`{{LOCAL_CODE_PATH}}`).
 2. **Read your persona's `agents/<you>/AGENT.md`** for any updates.
-3. **Check open handoffs addressed to you:**
-   ```bash
-   grep -rl "^status: open" {{LOCAL_COLLAB_PATH}}/_handoff/ 2>/dev/null \
-     | xargs grep -l "^for: <YourPersona>\|^for: all" 2>/dev/null
-   ```
-4. **Read open work assigned to you on the code repo:**
-   ```bash
-   gh issue list --state open --label agent-<you> --repo {{CODE_REPO}}
-   gh issue list --state open --label agent-<you> --repo {{COLLAB_REPO}}
-   ```
+3. **Check open handoffs addressed to you** (`read_collab`): in `{{LOCAL_COLLAB_PATH}}/_handoff/`,
+   find entries with `status: open` and `for: <you>` or `for: all`.
+4. **Read open work assigned to you** from the project's backlog source (see `manifest.yaml`):
+   items labelled `agent-<you>` on both the code and collab repos.
 5. **Read this file (`COORDINATION.md`)** for protocol updates.
 
 Then: begin work.
@@ -117,7 +111,7 @@ Project-level (non-architectural) decisions live in `decisions/YYYY-MM-DD-HHMM-s
 ## Ticket lifecycle (code repo)
 
 1. Analyst (or any persona) opens a GitHub issue with title, context, acceptance criteria, and label
-2. Persona self-assigns via `gh issue edit <N> --add-assignee "@me" --add-label "agent-<self>"`
+2. Persona self-assigns the work item to itself and applies its `agent-<self>` label on the project's backlog source (the concrete command is a runtime/backlog detail — see `adapters/<runtime>/HYDRATE.md`)
 3. Persona creates feature branch, opens PR when ready
 4. Per-project review policy decides who approves and merges
 5. Persona writes dev-log entry; closes issue via PR description
@@ -128,8 +122,8 @@ Project-level (non-architectural) decisions live in `decisions/YYYY-MM-DD-HHMM-s
 
 GitHub comments are for code discussion. Cross-persona coordination — task handoffs, blocking questions, completed subtask notifications, requests for input — go through `_handoff/`. See `CONVENTIONS.md § _handoff/ lifecycle` for format.
 
-**Iris (project owner's personal librarian) extension:**
-If the project owner runs an Iris persona on their personal machine in addition to this project, they can address handoffs `for: Iris` from this repo. Iris's session-start grep extends to read this repo's `_handoff/` for items addressed to her. One-way visibility — this repo doesn't see the personal vault.
+**Personal librarian extension:**
+If the project owner runs a librarian-equivalent persona on their personal machine in addition to this project, they can address handoffs `for: librarian` from this repo. That persona's session-start handoff scan extends to read this repo's `_handoff/` for items addressed to it. One-way visibility — this repo doesn't see the owner's personal workspace.
 
 ---
 

@@ -80,7 +80,7 @@ v1.0.0 (2026-06-03) is the runtime-agnostic milestone. v1.1+ tracks the deferred
 
 ```bash
 # 1. Verify the bi-runtime acceptance test passes:
-python tests/bi_runtime_accept.py
+uv run --with pyyaml python tests/bi_runtime_accept.py
 
 # 2. Bump version in .claude-plugin/plugin.json
 # 3. Move [Unreleased] content in CHANGELOG.md to a new version section
@@ -104,8 +104,9 @@ Invoke in a throwaway directory and verify the emitted files match the templates
 
 **Bi-runtime acceptance test** — the gate for adapter / spec / canonical-contract changes:
 ```bash
-python tests/bi_runtime_accept.py
+uv run --with pyyaml python tests/bi_runtime_accept.py
 ```
+(The harness needs PyYAML; `uv run --with pyyaml` provides it without a global install.)
 
 Validates that one `persona.yaml` hydrates to an equivalent behavior contract on both Claude Code and code-puppy adapters. Run before any PR touching adapters, references, or the v1.0 canonical contract files.
 

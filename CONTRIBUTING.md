@@ -20,10 +20,10 @@ Open an issue first describing what you want to change and why. Small fixes (typ
 For PRs touching adapters, references, or the v1.0 canonical contract files, also run the bi-runtime acceptance test before pushing:
 
 ```bash
-python tests/bi_runtime_accept.py
+uv run --with pyyaml python tests/bi_runtime_accept.py
 ```
 
-It validates that one `persona.yaml` hydrates to an equivalent behavior contract on both Claude Code and code-puppy adapters.
+It validates that one `persona.yaml` hydrates to an equivalent behavior contract on both Claude Code and code-puppy adapters. (The harness needs PyYAML; `uv run --with pyyaml` supplies it without a global install.)
 
 ## Documentation is part of every PR
 
