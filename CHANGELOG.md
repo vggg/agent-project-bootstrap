@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — `USING-WITH-CODE-PUPPY.md` quickstart
+
+- New top-level guide for running the bootstrap on code-puppy, which does not auto-discover the
+  Claude skill format. Documents the invoke-by-file-path flow (START → ORCHESTRATE → code-puppy
+  adapter), the launch-from-project-root requirement, a verified file map, and the Tier-3
+  enforcement note. README links to it from the Installation section.
+
 ### Changed — meta-docs refresh for v1.0 development surface
 
 - **`CLAUDE.md` rewritten** to reflect the post-ADR-001 reality: this repo is the canonical home and active development surface for v1.0+; the v0.x "vault canonical, repo snapshot" rule is sunset. Updates repo layout, persona expectation for a fresh agent landing in the repo, and release workflow.
