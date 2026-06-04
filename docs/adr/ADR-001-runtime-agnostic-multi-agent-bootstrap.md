@@ -356,14 +356,26 @@ validation; the forcing function in §2.4 makes adapter-first the right call.
    the adapter.
 4. **Write `adapters/generic/HYDRATE.md`** (mandatory Tier-1 fallback) to match what
    code-puppy needed.
-5. **Write `adapters/claude/HYDRATE.md`** — initially Tier-2 (CLAUDE.md rendering,
-   mirroring v0.3.x for home compatibility). Claude Tier-3 (subagents) defers to v1.1.
+5. **Write `adapters/claude/HYDRATE.md`** — Tier-2 (CLAUDE.md rendering, mirroring v0.3.x for
+   home compatibility) shipped in v1.0. **Claude Tier-3 (native subagents with an enforced
+   `tools:` allow-list) shipped in v1.1** as one configurable adapter (tier resolved from a
+   runtime-neutral `adapters.claude.tier` config: `auto` | `2` | `3`, `auto` by default).
 6. **De-Claude the neutral docs:** scrub tool names / MCP / CLAUDE.md from
    `CONVENTIONS.md`, `COORDINATION.md`.
 7. **Cut v1.0 release.** Acceptance: home (Claude Code) + work (code-puppy) both
    producing equivalent project shapes from the same spec.
-8. **Defer to post-1.0:** Claude Tier-3 subagent rendering, vault-project mode
-   re-integration, cron/failover live wiring, additional adapters (Codex, Wibey, etc.).
+8. **Defer to post-1.0:** ~~Claude Tier-3 subagent rendering~~ (shipped v1.1 — see step 5),
+   vault-project mode re-integration, cron/failover live wiring, additional adapters
+   (Codex, Wibey, etc.).
+
+> **v1.1 amendment (Claude Tier-3).** The tier config lives in a runtime-neutral
+> `adapters.<runtime>` envelope (`manifest.adapters.claude.tier` project default;
+> `persona.yaml > runtime.adapters.claude.tier` per-persona override) rather than a bare
+> `claude_tier` key — this keeps the canonical `manifest.yaml` / `persona.yaml` schemas free of
+> runtime tool names (preserving the §10.6 runtime-neutrality invariant) and generalizes to
+> future adapters. One configurable Claude adapter renders either tier; `auto` self-assesses
+> subagent support and degrades to Tier 2 when the session can't host subagents. Decided with
+> Vikram, 2026-06-03.
 
 ---
 

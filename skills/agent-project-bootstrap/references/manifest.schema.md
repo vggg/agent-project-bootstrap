@@ -19,6 +19,21 @@
 | `backlog.source` | yes | enum | `file` or `github_issues` or `jira` (resolves F8) |
 | `backlog.location` | yes | str | path (for `file`) or repo/project ref (for trackers) |
 | `personas` | yes | list | roster: each entry points at a `persona.yaml` |
+| `adapters` | no | map | per-runtime adapter overrides (project defaults); runtime-neutral envelope — see below |
+
+### adapters (runtime-neutral envelope)
+
+A namespaced block so the canon can carry per-runtime defaults **without naming runtime tools
+in the core fields**. Each key under `adapters` is a runtime id; the keys *inside* it are owned
+by that runtime's adapter, not by this schema. The canon defines only the SHAPE
+(`adapters.<runtime>.<key>`); adapters document their own keys.
+
+| Key | Owner | Notes |
+|---|---|---|
+| `adapters.claude.tier` | Claude adapter | `auto` \| `2` \| `3` (default `auto`). Project default rendering tier; see `adapters/claude/HYDRATE.md`. A persona may override via `runtime.adapters.claude.tier`. |
+
+> Unknown `adapters.<runtime>` blocks are ignored by adapters that don't recognize them —
+> additive and forward-compatible. Absence = every adapter uses its own default.
 
 ### repos[]
 
@@ -59,6 +74,9 @@ backlog:
 personas:
   - slug: tess
     spec: agents/tess/persona.yaml
+adapters:                     # optional; runtime-neutral envelope
+  claude:
+    tier: auto                # auto | 2 | 3 — project default rendering tier
 ```
 
 ## How this fixes the Phase 2 friction
@@ -75,3 +93,6 @@ personas:
 
 - **v1** (Phase 3): new, derived from the Phase 2 dogfood. Encodes location & transport
   independence (relative paths, configurable backlog source) to fix F1/F7/F8.
+- **v1.1** (Claude Tier-3): added the optional, runtime-neutral `adapters.<runtime>` override
+  envelope. First consumer: `adapters.claude.tier`. Additive — existing manifests are
+  unchanged and every adapter falls back to its own default when the block is absent.

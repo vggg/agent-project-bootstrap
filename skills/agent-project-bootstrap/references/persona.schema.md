@@ -25,6 +25,20 @@
 | `session_ritual` | yes | list | ordered intent tokens (see below) |
 | `runtime.trigger` | no | enum | `interactive` (default) \| `event` \| `cron` |
 | `runtime.model_hint` | no | str | optional model pin; adapter may apply (code-puppy does) |
+| `runtime.adapters` | no | map | per-runtime per-persona overrides; runtime-neutral envelope (see below) |
+
+## Per-persona adapter overrides (`runtime.adapters`)
+
+A namespaced block mirroring `manifest.adapters`, but scoped to ONE persona — it overrides the
+project default for that persona only. The canon defines just the shape
+(`runtime.adapters.<runtime>.<key>`); each adapter owns its own keys.
+
+| Key | Owner | Notes |
+|---|---|---|
+| `runtime.adapters.claude.tier` | Claude adapter | `auto` \| `2` \| `3`. Overrides `manifest.adapters.claude.tier` for this persona (e.g. lock a persona to Tier 2 even when the project default is `auto`/`3`). See `adapters/claude/HYDRATE.md`. |
+
+> Unknown `runtime.adapters.<runtime>` blocks are ignored by adapters that don't recognize
+> them. Absence = the persona inherits the project default.
 
 ## Session-ritual tokens (intent-level — resolves F8 transport coupling)
 
@@ -90,3 +104,6 @@ the yaml and re-derive. Adapters likewise read the yaml, not the md.
 
 - **v1** (Phase 3): finalized from the Phase 1 lean draft. Renamed `pull_both_repos` ->
   `sync_repos`. Adopted parametric `write_path`. Added optional `runtime.model_hint`.
+- **v1.1** (Claude Tier-3): added the optional, runtime-neutral `runtime.adapters.<runtime>`
+  per-persona override envelope (mirrors `manifest.adapters`). First consumer:
+  `runtime.adapters.claude.tier`. Additive — existing personas are unchanged.
