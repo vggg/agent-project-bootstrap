@@ -5,7 +5,7 @@ personas on both runtimes (code-puppy Tier 3, Claude Tier 2). 'Equivalent' = sam
 same effective capabilities, same guardrails. The artifacts differ (JSON vs CLAUDE.md) but
 the persona's behavior contract is identical.
 
-Run: uv run --with pyyaml python wip/acceptance/bi_runtime_accept.py
+Run: uv run --with pyyaml python tests/bi_runtime_accept.py
 """
 import sys, yaml
 
