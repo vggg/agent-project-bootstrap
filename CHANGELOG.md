@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-06-04
+
+The Claude Tier-3 milestone. The Claude adapter now renders native subagents with an enforced
+tool allow-list, plus the v1.0 close-out work. First properly cut release since v0.3.2
+(plugin.json bumped 0.3.2 → 1.1.0; forward-only — the partial v1.0.0/v1.0.1 tags are left as-is).
+
 ### Added — `USING-WITH-CODE-PUPPY.md` quickstart
 
 - New top-level guide for running the bootstrap on code-puppy, which does not auto-discover the
