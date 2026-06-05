@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed — reconcile user-facing docs to v1.0/v1.1 (documentation only)
+
+A new-user doc review found the older user-facing layer (README, `SKILL.md`) had not been pulled
+forward to the runtime-agnostic architecture. No behavior change — docs/templates only.
+
+- **README** — the *Runtime support* table now shows **Claude Tier 3** (v1.1 enforced subagents),
+  not just code-puppy; added a "Two generations — which path to use" section distinguishing the
+  runtime-agnostic path (`START`/`ORCHESTRATE`/`PARTICIPATE` + `persona.yaml` + adapters) from the
+  legacy v0.3.x emit modes; clarified `/plugin install` (URL or local clone).
+- **`SKILL.md`** — bumped frontmatter `0.3.2 → 1.1.0`; **fixed the canonicality banner** (it
+  claimed "vault is canonical, repo is a snapshot" — sunset since v1.0; now repo-canonical, matching
+  `CLAUDE.md`); added a "Two paths" section so an invoked skill knows the runtime-agnostic
+  entrypoints exist; corrected the stale "cron targeted for v0.4.0" note (shipped v0.3.2); updated
+  the File manifest to list the v1 canon/adapters/entrypoints.
+- **`ORCHESTRATE.md`** — added the required **"Install the canon + adapters into the project"**
+  step; the entrypoints/adapters reference `canon/…` and `adapters/<runtime>/…` paths that no emit
+  step previously created, which would have left future joiners pointing at missing files.
+- **`persona.schema.md`** — added an **Archetype support** note (only `dev` is rendered
+  end-to-end by v1 adapters; `autonomous-*`/`librarian` remain legacy `AGENT.md` templates) and
+  surfaced the optional `runtime.adapters` override in the example.
+- **`STATUS.md`** — added v1.1+ candidates: archetype parity in `persona.yaml`, native code-puppy
+  skill packaging; noted `join-collab-project` shares vault-project's re-integration gap.
+
 ## [1.1.0] — 2026-06-04
 
 The Claude Tier-3 milestone. The Claude adapter now renders native subagents with an enforced

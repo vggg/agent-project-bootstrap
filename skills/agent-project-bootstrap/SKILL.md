@@ -1,13 +1,50 @@
 ---
 name: agent-project-bootstrap
-version: 0.3.2
+version: 1.1.0
 created: 2026-05-22
-updated: 2026-05-29
+updated: 2026-06-05
 ---
 
-> **Canonical location:** This skill is developed in the vault at `_meta/skills/agent-project-bootstrap/`. The repo at https://github.com/vggg/agent-project-bootstrap is a published release snapshot. To ship changes: edit here, test, sync changed files to the repo, bump version in `.claude-plugin/plugin.json` and `CHANGELOG.md`, tag, push, release. Never edit the published repo directly except for repo-meta files (README, CHANGELOG, CONTRIBUTING).
+> **Canonical location:** As of v1.0 (ADR-001), the repo at
+> https://github.com/vggg/agent-project-bootstrap is the **canonical home and active
+> development surface** — the spec, adapters, references, tests, and meta-docs all live and
+> evolve here. The earlier "vault is canonical, repo is a release snapshot" rule is **sunset**.
+> The vault retains a historical copy under `_meta/skills/agent-project-bootstrap/` as archival
+> reference only. See `CLAUDE.md` and `CONTRIBUTING.md` in the repo for the contribution flow.
 
 # Skill: Agent-Project Bootstrap
+
+Bootstraps a multi-agent project. Two generations coexist — read this first to pick the right one:
+
+## Two paths (read before choosing)
+
+- **Runtime-agnostic path (v1.0+, current direction).** A single runtime-neutral
+  `persona.yaml` + `manifest.yaml` hydrates working personas on **any** runtime (Claude Code,
+  code-puppy, …) at the highest fidelity that runtime supports (the **capability ladder**:
+  Tier 3 native sub-agents with an *enforced* tool allow-list → Tier 2 session context → Tier 1
+  in-prompt). The entrypoints are **not** this SKILL.md but the neutral files in
+  `assets/collab-repo/`:
+  - `START.md` — front door; routes by directory state (new → ORCHESTRATE, existing → PARTICIPATE).
+  - `ORCHESTRATE.md` — Role 1, set up a new project. `PARTICIPATE.md` — Role 2, join one.
+  - `adapters/<runtime>/HYDRATE.md` — the only runtime-specific surface (`claude`, `code-puppy`,
+    `generic` Tier-1 fallback). The Claude adapter renders Tier 2 **or** Tier 3 (v1.1), chosen by
+    `adapters.claude.tier` (`auto` | `2` | `3`).
+  - `references/{capability-vocab.v1,persona.schema,manifest.schema}.md` — the canonical contract.
+
+  Use this for any **multi-runtime or remote-collab** project. On code-puppy, see
+  `USING-WITH-CODE-PUPPY.md` (the skill format isn't auto-discovered there — you invoke the
+  neutral files by path). The legacy `collab-repo-project` mode below is the flow this path
+  generalizes.
+
+- **Legacy emit modes (v0.3.x, below).** The three `{{placeholder}}`-template modes are the
+  original Claude-Code-only flows. `vault-project` and `join-collab-project` have **not** yet been
+  ported to the runtime-agnostic architecture (tracked in `STATUS.md`); they emit the
+  `AGENT.md`-template world, not `persona.yaml` + adapters. Fine if you only run Claude Code and
+  want the simplest path.
+
+---
+
+## Legacy emit modes (v0.3.x)
 
 Bootstraps a multi-agent Claude Code project. Supports three modes:
 
@@ -189,7 +226,7 @@ chmod +x {{LOCAL_COLLAB_PATH}}/workspace-template/setup.sh
 
 The `workspace-template/` provides a runtime-portable workspace bootstrap. Any collaborator (human or failover-runner of an autonomous persona) can `./workspace-template/setup.sh <persona-slug>` to scaffold a working workspace at `~/Workspace/{{PROJECT_NAME}}/<slug>/` with both repos cloned, per-repo git identity configured, and the thin CLAUDE.md + AGENTS.md bootstrap files in place.
 
-Cron self-registration (for cadence-driven personas) is **not** included in v0.3.1's setup.sh — that's targeted for v0.4.0.
+Cron stub generation (for cadence-driven personas) shipped in v0.3.2 as **opt-in** behind `REGISTER_CRON=yes` (generates, does not auto-load — you load it manually after reviewing the schedule). Default `setup.sh` behavior remains workspace-only.
 
 **4. Emit persona AGENT.md files.**
 
@@ -475,16 +512,34 @@ Claim a ticket per your `AGENT.md`'s instructions. Welcome aboard.
 
 ---
 
-# File manifest (v0.3.2)
+# File manifest (v1.1.0)
+
+> The runtime-agnostic spec (v1.0+) added the `references/{capability-vocab.v1,persona,manifest}.schema.md`
+> canon, the `assets/collab-repo/{START,ORCHESTRATE,PARTICIPATE}.md` entrypoints, and the
+> `assets/collab-repo/adapters/<runtime>/HYDRATE.md` adapters. The `assets/vault/` and
+> `assets/workspaces/` trees below are the legacy (v0.3.x) emit modes.
 
 ```
-SKILL.md                         (multi-mode dispatcher; this file)
+SKILL.md                         (legacy-mode dispatcher; this file. Runtime-agnostic entrypoint is assets/collab-repo/START.md)
+USING-WITH-CODE-PUPPY.md         (top-level: how to run the runtime-agnostic path on code-puppy)
 references/
+  capability-vocab.v1.md         (CANON: frozen v1 capability verb contract — v1.0)
+  persona.schema.md              (CANON: runtime-neutral persona.yaml schema — v1.0; runtime.adapters added v1.1)
+  manifest.schema.md             (CANON: runtime-neutral manifest.yaml schema — v1.0; adapters.<runtime> added v1.1)
   design-decisions.md            (rationale for skill choices)
   obsidian-setup.md              (Obsidian vault setup guide; applies to vault-project mode)
   collab-repo-design.md          (rationale for collab-repo-project mode — added v0.3.0)
 assets/
-  vault/                         (vault-project mode assets; unchanged from v0.2.0)
+  collab-repo/                   (runtime-agnostic entrypoints + adapters live here too — see below)
+    START.md                     (CANON: front door / router — v1.0)
+    ORCHESTRATE.md               (CANON: Role 1 — set up a new project — v1.0)
+    PARTICIPATE.md               (CANON: Role 2 — join a project + capability ladder — v1.0)
+    adapters/
+      claude/HYDRATE.md          (Tier 2 CLAUDE.md + Tier 3 subagent — v1.1)
+      code-puppy/HYDRATE.md      (Tier 3 enforced JSON sub-agent — v1.0)
+      generic/HYDRATE.md         (Tier 1 fallback, mandatory — v1.0)
+    agents/<slug>/persona.yaml   (CANON: machine-truth persona; AGENT.md derived from it — v1.0)
+  vault/                         (LEGACY vault-project mode assets; unchanged from v0.2.0)
     _meta/
       CONVENTIONS.md
       PERSONAS/{IRIS,DAVE,KRIS,VERA,IVY}.md

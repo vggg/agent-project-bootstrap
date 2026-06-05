@@ -35,7 +35,9 @@ These finish v1.0 but didn't block the release:
 
 ## v1.1+ candidates (per ADR §10.8 deferred list)
 
-- **vault-project mode re-integration.** v1.0 left vault-project on v0.3.x rails. Bringing it under the runtime-agnostic architecture means either porting it to use the `persona.yaml` + adapter pattern, or formally deprecating it.
+- **vault-project mode re-integration.** v1.0 left vault-project on v0.3.x rails. Bringing it under the runtime-agnostic architecture means either porting it to use the `persona.yaml` + adapter pattern, or formally deprecating it. (Same applies to `join-collab-project` mode.)
+- **Archetype parity in `persona.yaml` + adapters.** The runtime-agnostic spec renders only the `dev` archetype end-to-end. `autonomous-event`, `autonomous-cron`, and `librarian` still live only as legacy `AGENT.md` templates — port them so those archetypes hydrate via `persona.yaml` on each runtime (see `references/persona.schema.md` "Archetype support").
+- **Native code-puppy skill packaging.** code-puppy doesn't auto-discover the Claude `SKILL.md` format, so it's invoked by file path today (`USING-WITH-CODE-PUPPY.md`). A native code-puppy skill wrapper would remove the manual step.
 - **Cron / failover live wiring.** v1.0 emits cron stubs and failover runbooks but doesn't wire schedulers automatically. Cross-runtime cron auto-registration is real engineering work.
 - **Additional adapters** — Codex, Wibey, etc. Add when there's a forcing function (a real project on that runtime).
 

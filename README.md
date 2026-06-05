@@ -14,6 +14,26 @@ Three project modes are available:
 
 All emitted files use `{{placeholder}}` tokens you fill once; nothing is hardcoded to a specific project.
 
+## Two generations — which path to use
+
+This repo currently contains **two** scaffolding flows. Knowing which you're on avoids confusion:
+
+- **Runtime-agnostic path (v1.0+, current direction).** Driven by the neutral entrypoints
+  `START.md → ORCHESTRATE.md` (set up) / `PARTICIPATE.md` (join), a machine-readable
+  `manifest.yaml` + `persona.yaml` per persona, and per-runtime **adapters**. This is what runs
+  on **both** Claude Code and code-puppy (see [Runtime support](#runtime-support-v10-runtime-agnostic)
+  and [`USING-WITH-CODE-PUPPY.md`](USING-WITH-CODE-PUPPY.md)). The `collab-repo-project` mode below
+  is the flow this path generalizes — **for a new multi-runtime or remote-collab project, prefer the
+  runtime-agnostic path.**
+- **Legacy emit modes (v0.3.x).** The three `{{placeholder}}`-template modes below
+  (`vault-project`, `collab-repo-project`, `join-collab-project`) are the original Claude-Code-only
+  flows. `vault-project` and `join-collab-project` have **not** yet been ported to the
+  runtime-agnostic architecture (tracked in [`STATUS.md`](STATUS.md)); they still emit the
+  `AGENT.md`-template world rather than `persona.yaml` + adapters.
+
+If you only run Claude Code and want the simplest thing, the legacy modes still work. If you run
+code-puppy (or want enforced Tier-3 guardrails, or multiple runtimes), use the runtime-agnostic path.
+
 ## When it's useful
 
 - You're running multiple Claude Code sessions in parallel on the same long-lived project
@@ -102,9 +122,15 @@ and degrades gracefully:
 
 | Tier | Runtime | Mechanism | Enforcement |
 |---|---|---|---|
-| 3 | code-puppy | native JSON sub-agents | capabilities enforced via a tool allow-list (sub-tool denials instructed) |
-| 2 | Claude Code | persistent `CLAUDE.md` | persistent context; capabilities instructed |
+| 3 | **Claude Code (v1.1)** or code-puppy | native sub-agents (Claude `.claude/agents/<slug>.md`; code-puppy JSON agents) | capabilities enforced via a tool allow-list — **whole-tool denials are real** (a read-only persona genuinely cannot write/run shell); sub-tool denials instructed |
+| 2 | Claude Code | persistent `CLAUDE.md` | persistent session context; capabilities instructed |
 | 1 | anything | in-prompt | persona re-read each turn; self-enforced |
+
+> **New in v1.1:** the Claude adapter renders **either** Tier 2 (`CLAUDE.md`) **or** Tier 3
+> (a native subagent with an enforced tool allow-list), selected by a runtime-neutral
+> `adapters.claude.tier` config (`auto` | `2` | `3`, default `auto`; `auto` uses Tier 3 when the
+> session can host subagents and falls back to Tier 2 otherwise). So enforced guardrails are no
+> longer code-puppy-only.
 
 Key files:
 
@@ -119,7 +145,8 @@ See [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for th
 ## Installation
 
 ```
-/plugin install https://github.com/vggg/agent-project-bootstrap
+/plugin install https://github.com/vggg/agent-project-bootstrap   # from GitHub
+/plugin install /path/to/agent-project-bootstrap                  # from a local clone (e.g. for development)
 ```
 
 > The `/plugin install` command syntax may evolve as Claude Code matures. If the above fails, check the [Claude Code docs](https://docs.anthropic.com/claude-code) for the current install command format.
