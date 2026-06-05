@@ -13,7 +13,7 @@
 |---|---|---|---|
 | `persona` | yes | str | Display name, e.g. `Tess` |
 | `slug` | yes | str | kebab/lower id, e.g. `tess` (agent name + label stem) |
-| `archetype` | yes | enum | `dev` (v1). Future: `librarian`, `reviewer`, `autonomous-*` |
+| `archetype` | yes | enum | `dev` is the one archetype the v1 adapters render end-to-end. See **Archetype support** below before using others. |
 | `identity.git_name` | yes | str | git author name |
 | `identity.git_email` | yes | str | git author email (may use `{{IDENTITY_DOMAIN}}`) |
 | `identity.commit_prefix` | yes | str | e.g. `tess:` |
@@ -36,6 +36,20 @@ project default for that persona only. The canon defines just the shape
 | Key | Owner | Notes |
 |---|---|---|
 | `runtime.adapters.claude.tier` | Claude adapter | `auto` \| `2` \| `3`. Overrides `manifest.adapters.claude.tier` for this persona (e.g. lock a persona to Tier 2 even when the project default is `auto`/`3`). See `adapters/claude/HYDRATE.md`. |
+
+## Archetype support (read before using a non-`dev` archetype)
+
+The runtime-agnostic spec (this `persona.yaml` + the adapters) was derived and validated for the
+**`dev`** archetype; the adapters render `dev` (and read-only, reviewer-shaped `dev` variants)
+end-to-end, and the acceptance harness exercises exactly those.
+
+The other archetypes the rest of the docs mention — **`autonomous-event`**, **`autonomous-cron`**,
+**`librarian`** — currently exist only as the **legacy `AGENT.md` templates** under
+`assets/collab-repo/agents/` (the v0.3.x emit world). They are **not yet** first-class in
+`persona.yaml` + adapters: bringing them under the runtime-agnostic architecture (so e.g. a
+`librarian` `persona.yaml` hydrates correctly on each runtime) is a tracked port — see `STATUS.md`
+"v1.1+ candidates". Until then, declare those archetypes via the legacy templates, and keep
+`persona.yaml` archetypes to `dev`.
 
 > Unknown `runtime.adapters.<runtime>` blocks are ignored by adapters that don't recognize
 > them. Absence = the persona inherits the project default.
@@ -92,6 +106,9 @@ session_ritual:
   - check_backlog
 runtime:
   trigger: interactive
+  # adapters:                 # optional per-persona adapter overrides (v1.1)
+  #   claude:
+  #     tier: 2               # lock Tess to Tier 2 even if the project default is auto/3
 ```
 
 ## Derivation rule (F4)
