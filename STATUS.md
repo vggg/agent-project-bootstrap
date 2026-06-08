@@ -19,7 +19,7 @@ The runtime-agnostic milestone is **RELEASED** (v1.0.0 + v1.0.1).
   - [x] `skills/agent-project-bootstrap/assets/collab-repo/CONVENTIONS.md` (PR #7)
   - [x] `skills/agent-project-bootstrap/assets/collab-repo/COORDINATION.md` (PR #12)
 - [x] **Step 7** — Cut v1.0 release. *Shipped 2026-06-03 (v1.0.0 + v1.0.1).*
-- [ ] **Step 8** — Deferred items (post-1.0). See "v1.1+ candidates" below.
+- [ ] **Step 8** — Deferred items (post-1.0). See "v1.2+ candidates" below.
 
 ## v1.0 close-out items
 
@@ -33,7 +33,9 @@ These finish v1.0 but didn't block the release:
 
 - [x] **Claude Tier-3 subagent rendering.** `adapters/claude/HYDRATE.md` now renders BOTH tiers from one configurable adapter: Tier 2 (`CLAUDE.md`, instructed) and Tier 3 (native subagent at `.claude/agents/<slug>.md` with an enforced `tools:` allow-list — whole-tool denials are real; sub-tool denials stay instructed, matching the code-puppy contract). Tier resolved from a **runtime-neutral** `adapters.claude.tier` config (`auto` | `2` | `3`, default `auto`; project default in `manifest.adapters.claude.tier`, per-persona override in `persona.yaml > runtime.adapters.claude.tier`). `auto` self-assesses subagent support and degrades to Tier 2 gracefully. `tests/bi_runtime_accept.py` asserts code-puppy ≡ Claude-Tier-2 ≡ Claude-Tier-3 for both fixtures. Config-location decision (namespaced envelope vs. bare `claude_tier`) recorded in ADR-001 §10.8 amendment.
 
-## v1.1+ candidates (per ADR §10.8 deferred list)
+## v1.2+ candidates (per ADR §10.8 deferred list)
+
+> v1.1 is shipped (Claude Tier-3, above). These are post-v1.1 / next-minor candidates.
 
 - **vault-project mode re-integration.** v1.0 left vault-project on v0.3.x rails. Bringing it under the runtime-agnostic architecture means either porting it to use the `persona.yaml` + adapter pattern, or formally deprecating it. (Same applies to `join-collab-project` mode.)
 - **Archetype parity in `persona.yaml` + adapters.** The runtime-agnostic spec renders only the `dev` archetype end-to-end. `autonomous-event`, `autonomous-cron`, and `librarian` still live only as legacy `AGENT.md` templates — port them so those archetypes hydrate via `persona.yaml` on each runtime (see `references/persona.schema.md` "Archetype support").
@@ -44,6 +46,6 @@ These finish v1.0 but didn't block the release:
 ## How to use this file
 
 - Update on every PR that ships a step.
-- New deferred items get added under "v1.1+ candidates."
+- New deferred items get added under "v1.2+ candidates."
 - Completed items move from `[~]` / `[ ]` to `[x]`.
 - Per `CONTRIBUTING.md`, this file is part of every PR that ships a §10 step.

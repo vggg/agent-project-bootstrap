@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed — STATUS.md: relabel the forward backlog `v1.1+` → `v1.2+`
+
+- v1.1 is shipped, so the deferred-items section is now "v1.2+ candidates" (was the stale
+  "v1.1+ candidates"). Status sync only.
+
 ### Changed — reconcile user-facing docs to v1.0/v1.1 (documentation only)
 
 A new-user doc review found the older user-facing layer (README, `SKILL.md`) had not been pulled
