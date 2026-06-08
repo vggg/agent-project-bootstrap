@@ -11,7 +11,7 @@ The runtime-agnostic milestone is **RELEASED** (v1.0.0 + v1.0.1).
 ### §10 execution plan — final status
 
 - [x] **Step 1** — Write `adapters/code-puppy/HYDRATE.md` end-to-end for one persona. *Shipped in PRs #2 / #4.*
-- [~] **Step 2** — Ship work project on code-puppy; validate adapter against real use. *Self-hosting underway — code-puppy has been doing the v1.0 implementation on this very repo (PRs #2, #4, #7, #8). The `tests/bi_runtime_accept.py` harness exercises the contract automatically; the "outcome notes" writeup (what worked, what didn't, what vocabulary surfaced from observed need) hasn't been authored yet.*
+- [x] **Step 2** — Ship work project on code-puppy; validate adapter against real use. *Self-hosting validated — code-puppy built the v1.0 implementation on this very repo (PRs #2, #4, #7, #8); the `tests/bi_runtime_accept.py` harness exercises the contract automatically. The "outcome notes" writeup is now authored at `references/v1-self-hosting-notes.md` (§10.2 below).*
 - [x] **Step 3** — Derive the canonical contract from observed needs. *Shipped.* References at `skills/agent-project-bootstrap/references/{capability-vocab.v1, persona.schema, manifest.schema}.md`; neutral entrypoints at `skills/agent-project-bootstrap/assets/collab-repo/{START, ORCHESTRATE, PARTICIPATE}.md`.
 - [x] **Step 4** — Write `adapters/generic/HYDRATE.md` (Tier-1 fallback). *Shipped.*
 - [x] **Step 5** — Write `adapters/claude/HYDRATE.md` (Tier 2 — CLAUDE.md rendering). *Shipped.* Tier-3 (Claude native subagents, enforced `tools:` allow-list) **shipped in v1.1** as one configurable adapter — see "v1.1 — shipped" below.
@@ -21,13 +21,13 @@ The runtime-agnostic milestone is **RELEASED** (v1.0.0 + v1.0.1).
 - [x] **Step 7** — Cut v1.0 release. *Shipped 2026-06-03 (v1.0.0 + v1.0.1).*
 - [ ] **Step 8** — Deferred items (post-1.0). See "v1.2+ candidates" below.
 
-## v1.0 close-out items
+## v1.0 close-out items — ✅ all complete
 
-These finish v1.0 but didn't block the release:
+These finished v1.0 (none blocked the release); all three are now done:
 
 - ~~**§10.6 — de-Claude `COORDINATION.md`.**~~ **Done (PR #12).** Session-start checklist now states intent (capabilities, not shell commands) and points at `adapters/<runtime>/HYDRATE.md`; the `gh issue edit` self-assignment was abstracted to backlog-source language; the Iris-specific personal-librarian paragraph was generalized to any librarian-equivalent persona. Matches the canon's tone and the PR #7 treatment of `CONVENTIONS.md`.
-- **§10.2 — outcome notes from the self-hosting validation.** *(partial)* `docs/LEARNINGS.md` now exists as a minimum-viable lessons index (L1–L3, Proven #1–#2) and resolves the references that cited it. **Still TBD:** the comprehensive outcome notes — which capability verbs surfaced from observed need (vs. designed up-front), where the spec held up well, where it bent, what was discarded as YAGNI. This is the empirical-backbone evidence the §10 plan promises; the minimal index is not a substitute for it.
-- **Adapter location interpretation.** Implementation puts adapters at `skills/agent-project-bootstrap/assets/collab-repo/adapters/` (emit-time templates that copy to `<target-project>/adapters/` at scaffold time). ADR §4.6's "Resulting repo shape" diagram shows `adapters/` at repo root — which describes the EMITTED PROJECT's structure, not this repo's. The two are consistent, but the ADR diagram is ambiguous. Either amend the diagram caption to make this explicit OR add a clarifying paragraph in §4.6. No code move needed.
+- ~~**§10.2 — outcome notes from the self-hosting validation.**~~ **Done.** The comprehensive writeup is now at `references/v1-self-hosting-notes.md` — which capability verbs surfaced from observed need, where the spec held, where it bent (e.g. the `write_path` collapse, `pull_both_repos`→`sync_repos`, F7/F8), and what was discarded as YAGNI. `docs/LEARNINGS.md` remains the short index; this is the empirical-backbone companion.
+- ~~**Adapter location interpretation.**~~ **Resolved.** ADR §4.6 now carries a caption making explicit that the "Resulting repo shape" diagram is the EMITTED PROJECT's structure (root `canon/` + `adapters/`), not the skill repo's (`skills/agent-project-bootstrap/assets/collab-repo/` + `references/`). No code move; consistent with `ORCHESTRATE.md` step 2a.
 
 ## v1.1 — shipped
 

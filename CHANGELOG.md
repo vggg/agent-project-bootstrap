@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — v1.0 close-out: §10.2 self-hosting outcome notes + §10.2/§4.6 docs
+
+- **`references/v1-self-hosting-notes.md` (new)** — the comprehensive §10.2 "empirical backbone"
+  writeup: which capability verbs surfaced from observed need, where the spec held, where it bent
+  (`write_path` collapse, `pull_both_repos`→`sync_repos`, F7/F8), and what was discarded as YAGNI.
+  Companion to the short `docs/LEARNINGS.md` index.
+- **ADR-001 §4.6** — added a caption clarifying the "Resulting repo shape" diagram is the
+  *emitted project's* structure (root `canon/` + `adapters/`), not the skill repo's. Resolves the
+  long-standing adapter-location ambiguity.
+- **`USING-WITH-CODE-PUPPY.md`** — added a "Vault commit / `/vc` on code-puppy" section (the two
+  equivalents: the emitted `/vc-<slug>` command, or describing the workflow in plain language).
+  *Reconciled from PR #15, which is now closed.*
+- **`STATUS.md`** — v1.0 close-out marked complete (§10.2 + adapter-location done; Step 2 → `[x]`).
+
 ## [1.1.1] — 2026-06-08
 
 Documentation-only release. Pulls the user-facing docs (README, `SKILL.md`) forward to the

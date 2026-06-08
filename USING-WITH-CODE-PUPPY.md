@@ -71,3 +71,27 @@ tools that aren't granted are not registered, so denials at whole-tool granulari
 hold (e.g. a read-only reviewer that *cannot* write). Sub-tool denials (e.g. allow `open_pr`,
 deny `merge_pr` — both ride `agent_run_shell_command`) remain instruction-level. If you need a
 collaborator's guardrails to be hard-enforced, run them on code-puppy rather than a Tier-2 runtime.
+
+## "Vault commit" / `/vc` on code-puppy
+
+`/vc` ("vault commit") is a **Claude Code slash command** (`assets/commands/vc.md`). code-puppy
+has no command by that name, so saying "vault commit" or `/vc` to a code-puppy agent does nothing
+— it doesn't understand it. There are two ways to get the same behavior:
+
+**Option A — use the emitted per-persona command (if your project was hydrated).**
+The code-puppy adapter emits a project-scoped command at `{repo}/.agents/commands/vc-<slug>.md`
+(e.g. `vc-scout.md`). If your runtime's customizable-commands plugin is active, invoke it as
+`/vc-<slug>`. (Path quirk: agents live under `.code_puppy/` with an underscore, commands under
+`.agents/commands/`.)
+
+**Option B — just describe the workflow (always works).**
+Tell the agent in plain language:
+
+> Commit my changes the "vault commit" way: run `git status --short` (never `git add -A`), stage
+> only the intended files, commit with message `<commit_prefix> <op> | <description>` (my prefix
+> is `<your-prefix>:`), push the current branch (never force-push, never push to main directly),
+> and for substantive changes open a PR instead. `_handoff/` files may be direct-pushed.
+
+Both produce the canonical `<persona>: <op> | <description>` commit + push that `/vc` does on
+Claude Code. The workflow is what matters, not the slash command — code-puppy executes the steps
+directly.

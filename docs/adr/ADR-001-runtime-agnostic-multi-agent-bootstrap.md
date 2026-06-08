@@ -217,6 +217,13 @@ folder, touch nothing else (**Open/Closed Principle** for runtimes).
 
 ### 4.6 Resulting repo shape
 
+> **This diagram is the shape of an EMITTED PROJECT** (a collab repo this skill scaffolds) — it is
+> NOT the layout of the `agent-project-bootstrap` skill repo itself. In the skill repo these files
+> are emit-time templates under `skills/agent-project-bootstrap/assets/collab-repo/` (entrypoints +
+> `adapters/`) and `skills/agent-project-bootstrap/references/` (the canon spec); at scaffold time
+> they are copied into the target project at the root paths shown below (`canon/` + `adapters/` —
+> see `ORCHESTRATE.md` step 2a). The two structures are consistent; only the root differs.
+
 ```
 START.md                  ← neutral front door: self-select role
 ORCHESTRATE.md            ← Role 1 recipe (runtime-neutral)
