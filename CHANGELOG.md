@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.1] — 2026-06-08
+
+Documentation-only release. Pulls the user-facing docs (README, `SKILL.md`) forward to the
+runtime-agnostic v1.0/v1.1 architecture, adds the required "install canon + adapters" step to
+`ORCHESTRATE.md`, and relabels the forward backlog `v1.1+` → `v1.2+` now that v1.1 has shipped.
+No behavior or template-logic change.
+
 ### Changed — relabel the forward backlog `v1.1+` → `v1.2+` (v1.1 shipped)
 
 - v1.1 is shipped, so the deferred-items backlog is now "v1.2+ candidates" (was the stale
@@ -35,6 +42,9 @@ forward to the runtime-agnostic architecture. No behavior change — docs/templa
   surfaced the optional `runtime.adapters` override in the example.
 - **`STATUS.md`** — added v1.1+ candidates: archetype parity in `persona.yaml`, native code-puppy
   skill packaging; noted `join-collab-project` shares vault-project's re-integration gap.
+- **`.claude-plugin/plugin.json`** — modernized the plugin `description` from the v0.3.x
+  "Claude Code project / three modes" framing to the runtime-agnostic v1 reality (multi-runtime,
+  `persona.yaml` + adapters; legacy modes still listed).
 
 ## [1.1.0] — 2026-06-04
 

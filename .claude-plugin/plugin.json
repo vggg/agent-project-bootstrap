@@ -1,7 +1,7 @@
 {
   "name": "agent-project-bootstrap",
-  "description": "Scaffold a multi-agent Claude Code project. Three modes: vault-project (lean), collab-repo-project (Option A with dedicated collab repo for remote teams), join-collab-project (onboard a new collaborator).",
-  "version": "1.1.0",
+  "description": "Scaffold a runtime-agnostic multi-agent project: one persona.yaml hydrates working personas on any AI coding agent (Claude Code, code-puppy, ...) via per-runtime adapters. Also includes the legacy Claude Code emit modes (vault-project, collab-repo-project, join-collab-project).",
+  "version": "1.1.1",
   "author": {
     "name": "vggg"
   }
