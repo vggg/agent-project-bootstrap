@@ -6,10 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Changed — STATUS.md: relabel the forward backlog `v1.1+` → `v1.2+`
+### Changed — relabel the forward backlog `v1.1+` → `v1.2+` (v1.1 shipped)
 
-- v1.1 is shipped, so the deferred-items section is now "v1.2+ candidates" (was the stale
-  "v1.1+ candidates"). Status sync only.
+- v1.1 is shipped, so the deferred-items backlog is now "v1.2+ candidates" (was the stale
+  "v1.1+ candidates"). Updated `STATUS.md` (section heading + 2 internal refs), `CLAUDE.md`
+  (versioning note), and `references/persona.schema.md` (the archetype-support pointer). Status
+  sync only.
 
 ### Changed — reconcile user-facing docs to v1.0/v1.1 (documentation only)
 
