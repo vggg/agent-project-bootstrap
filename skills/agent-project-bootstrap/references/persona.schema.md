@@ -48,7 +48,7 @@ The other archetypes the rest of the docs mention — **`autonomous-event`**, **
 `assets/collab-repo/agents/` (the v0.3.x emit world). They are **not yet** first-class in
 `persona.yaml` + adapters: bringing them under the runtime-agnostic architecture (so e.g. a
 `librarian` `persona.yaml` hydrates correctly on each runtime) is a tracked port — see `STATUS.md`
-"v1.1+ candidates". Until then, declare those archetypes via the legacy templates, and keep
+"v1.2+ candidates". Until then, declare those archetypes via the legacy templates, and keep
 `persona.yaml` archetypes to `dev`.
 
 > Unknown `runtime.adapters.<runtime>` blocks are ignored by adapters that don't recognize
