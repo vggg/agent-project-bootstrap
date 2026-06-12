@@ -169,7 +169,23 @@ def esc(s):
     return html_lib.escape(str(s if s is not None else ""))
 
 
+def derive_html_companion(path):
+    """If path ends with .md, return the .html sibling. Otherwise return as-is.
+
+    Useful when the HTML short-form should link to the HTML full report rather
+    than its markdown source (the browser can't render markdown inline).
+    """
+    if not path:
+        return path
+    if path.lower().endswith(".md"):
+        return path[:-3] + ".html"
+    return path
+
+
 def render_html(snap, full_report_path):
+    # If caller passed a .md path, derive the .html sibling so the in-browser
+    # "Full report" link goes somewhere a browser can render.
+    full_report_path = derive_html_companion(full_report_path)
     eff = apply_addenda(snap)
     audit_run = eff.get("audit_run") or {}
     verdict = eff.get("verdict") or {}
