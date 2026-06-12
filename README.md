@@ -6,7 +6,7 @@ a single runtime-neutral `persona.yaml` hydrates working personas on whatever AI
 you run — Claude Code, code-puppy, or anything else — at the highest fidelity that runtime
 supports. It started as a Claude Code plugin and remains fully compatible with it.
 
-**As of v1.2 this repo ships a sister skill, [`multi-agent-audit`](skills/multi-agent-audit/),** for **grading** multi-agent projects with evidence — INTERVENTION TAX, dual-lens drift, operational fidelity — instead of vibes. Read-only by construction. See [Sister skill](#sister-skill-multi-agent-audit).
+**As of v1.2 this repo ships a sister skill, [`multi-agent-audit`](skills/multi-agent-audit/),** for **grading** multi-agent projects with evidence — INTERVENTION TAX, dual-lens drift, operational fidelity — instead of vibes. Read-only by construction. **v1.3 (2026-06-12)** closed 13 self-review findings from the first real audit + added a timeline view of important events. See [Sister skill](#sister-skill-multi-agent-audit).
 
 Three project modes are available:
 
@@ -155,7 +155,8 @@ The other half of the kit: a **read-only audit skill** that grades multi-agent p
 | **Read-only** | Never modifies the audited project. Tool allow-list omits `Edit`; `Write` only for the report, outside the audited repos. |
 | **Framework-neutral** | Works on `agent-project-bootstrap`, CrewAI, LangGraph, AutoGen, Copilot agents, custom loops. |
 | **Two-layer** | Universal WHAT-to-measure + per-layout WHERE-it-lives discovery (Step 0). |
-| **Outputs** | Markdown report + optional self-contained HTML dashboard (Chart.js) + machine-readable snapshot JSON for trend analysis. |
+| **Outputs** | Markdown report + self-contained HTML dashboard (Chart.js + horizontal SVG timeline) + 1 KB short-form executive summary (md or html) + machine-readable snapshot JSON for trend analysis. |
+| **v1.3 enhancements** | Multi-substrate Agents lens (claim labels + handoffs + frontmatter, not just git log); snapshot `addenda:` field for revising shipped point-in-time records; weighted operational-fidelity option; 5 stdlib Python helpers (trend reader, timeline extractor, Brandes' betweenness centrality, coverage parsers, per-persona PR attribution); HTML renderer + short-form renderer; subagent-isolation smoke test + automated contract checker. |
 
 Invoke via the bundled `project-auditor` subagent (`skills/multi-agent-audit/agents/project-auditor.md`) which enforces the read-only rule at the tool layer, or read `SKILL.md` directly from any runtime.
 
