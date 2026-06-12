@@ -1,0 +1,15 @@
+# Python bytecode caches — never tracked
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE / editor scratch
+.vscode/
+.idea/
+*.swp
+
+# Local test outputs (renderer dumps; smoke-test results)
+*.local.html
+*.local.md
+/_scratch/
