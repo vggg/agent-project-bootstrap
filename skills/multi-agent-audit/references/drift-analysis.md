@@ -21,12 +21,25 @@ For each, drive both lenses with a concrete query or document source. If a dimen
 | Lens | Source |
 |---|---|
 | INTENDED | Declared roster (Step 0) |
-| ACTUAL | Observed actor inventory (Step 0.5 actor resolution, `references/actor-resolution.md`) |
+| ACTUAL | Observed actor inventory **across ALL identity substrates** (Step 0.5 actor resolution, `references/actor-resolution.md`) |
 
-GAP examples:
+> ⚠️ **Critical rule (lesson from v1.2.0 GardenTwin audit):** the Agents dimension uses **ALL identity substrates the project actually uses**, not `git log` alone. A project where personas identify themselves via GitHub `agent-*` labels + handoff frontmatter + dev-log frontmatter + EOD frontmatter is **operationally per-persona-identified** even if `git log` shows one author. Identity collision in `git log` is the RULE for multi-agent projects driven by a single human (Vikram-as-operator pattern), NOT pathological drift. Score the Agents dimension on **the union of substrates**, and surface the collision-in-git-log as a minor convenience gap, not as the main Agents-row finding.
 
-- *"3 actors declared; 5 observed. 2 undeclared (one CI bot, one human contributor)."*
-- *"5 declared; 4 observed. 1 declared persona (librarian) has 0 commits, 0 wiki writes, 0 handoffs — appears dormant."*
+Identity substrates to enumerate per project (use whichever exist):
+
+1. **Git author identity** (`git log %an %ae`) — one substrate; expect collision when personas share a driving human
+2. **GitHub `agent-*` labels** on issues/PRs — primary attribution substrate for agent-project-bootstrap projects
+3. **Vault `_handoff/` `from:` / `for:` frontmatter** — cross-persona coordination substrate
+4. **Per-session output frontmatter** — dev-log `agent:`, EOD `agent:`, session-log `agent:` declarations
+5. **Persona-prefix commits** (`iris:`, `dave:`, `kris:`, etc.) — when used; agent-project-bootstrap v1.x repos may or may not use these (the canonical repo uses Conventional Commits instead)
+
+A persona is **operationally identified** if it appears consistently in ≥2 of these substrates with frequency proportional to its declared role.
+
+GAP examples (revised):
+
+- *"5 declared; 5 operationally identified (via labels + handoffs + dev-logs); 1.5 distinct in `git log` — identity collision in git is expected for this layout, not drift."* → score as **healthy**, note the git-collision as a convenience gap, score row credit ~0.8.
+- *"5 declared; 4 operationally identified across substrates; 1 declared persona (librarian) has 0 commits, 0 wiki writes, 0 handoffs, 0 dev-logs — appears dormant."* → score as **real drift**, credit ~0.5.
+- *"3 declared; 5 observed across substrates. 2 undeclared (one CI bot, one human contributor)."* → score as **observed-but-undeclared drift**, credit ~0.5.
 
 ### 2. Autonomy
 

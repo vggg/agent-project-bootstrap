@@ -215,6 +215,20 @@ Ordered by **leverage × ease** (1–9 score, 9 = highest priority).
 
 ---
 
+## 9.5 Timeline
+
+Important events in the audit window, in chronological order. See `references/timeline.md` for the event-type taxonomy and importance heuristic.
+
+| Date | Event | Type | Importance | Source |
+|---|---|---|---|---|
+| {{WINDOW_START}} | Window start | — | — | — |
+| {{...}} | {{...}} | {{release \| adr \| roster \| convention \| incident \| audit \| feature}} | {{1-10}} | {{...}} |
+| {{WINDOW_END}} | Window end | — | — | — |
+
+Pivotal events (importance ≥7) bolded. Generated via `scripts/extract_timeline.py`.
+
+---
+
 ## 10. Trend
 
 _Populated only if ≥2 snapshots exist._
@@ -238,11 +252,29 @@ Compared to {{previous-snapshot-timestamp}}:
 - **Time window:** {{...}}
 - **Sources used:** {{gh api, git log, branch protection API, ...}}
 - **Sampling:** {{none, or describe stratified-random-by-week N=...}}
-- **Identity resolution:** {{persona-prefix-wins, etc.}}
+- **Identity resolution:** {{persona-prefix-wins, etc.; **multi-substrate Agents-dimension rule applied** per drift-analysis.md v1.3+}}
 - **Adapters loaded:** {{bootstrap-adapter | heuristic}}
 - **Confidence summary:** measured {{N}} | inferred {{M}} | not measurable {{K}}
+- **Auditor independence:**
+  - `auditor_is_participant`: {{true | false}}
+  - participant_personas: {{[list] | "n/a"}}
+  - rationale: {{...}}
+  - *(If true: the audit's findings may be softened or skewed; downstream readers should calibrate confidence accordingly. Future v1.4 of the skill may decline to audit projects where the auditor is a participant.)*
+- **Operational fidelity weighting:** {{default (equal-weight) | weighted: see §11a}}
 
 Reproducibility: every metric value can be re-derived by running the commands cited in this report's tables against a clone of the same state.
+
+---
+
+## 11b. Addenda (if any)
+
+Reports are point-in-time records and are never edited after they ship. Corrections live as sibling addendum files in the same `audit/` folder. List all addenda affecting this audit:
+
+| ID | Created | Title | Affects | Path |
+|---|---|---|---|---|
+| {{NN}} | {{YYYY-MM-DD}} | {{...}} | {{fields}} | {{path}} |
+
+If this audit has no addenda, write: *"None as of {{audit_date}}."*
 
 ---
 

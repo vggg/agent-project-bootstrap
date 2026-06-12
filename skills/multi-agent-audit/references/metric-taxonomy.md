@@ -213,6 +213,42 @@ Acceptance hit rate is the only metric that requires light judgment — be expli
 
 ---
 
+## Operational fidelity — weighting (v1.3+)
+
+Default fidelity formula (from v1.0) treated all dimensions equally. v1.3 introduces an **optional weighted** formula for projects where some dimensions matter more than others.
+
+### Default — equal weight
+
+```
+operational_fidelity = sum(dimension_credits) / N_dimensions_scored
+```
+
+Each scored dimension contributes a credit in [0.0, 1.0] (see `drift-analysis.md`). N_dimensions_scored excludes dimensions marked `n/a` or `not measurable`.
+
+### Weighted (opt-in)
+
+If the user supplies dimension weights, use:
+
+```
+operational_fidelity = sum(weight_i * credit_i) / sum(weight_i)
+```
+
+Where weights are positive numbers (relative; do not need to sum to 1.0 — the formula normalizes).
+
+Sensible default weights when the user opts into weighting without specifying:
+
+| Dimension | Default weight | Rationale |
+|---|---|---|
+| Agents | 1.0 | Foundation — without identity attribution, nothing else can be scored |
+| Autonomy | 1.0 | Headline of the skill |
+| Reviewers | 1.5 | Review gate is the most-frequent operational drift |
+| Guardrails | 2.0 | Enforced-vs-instructed gap has direct security/correctness impact |
+| Routing/ownership | 1.0 | |
+| Backlog/workflow | 1.0 | |
+| Rituals | 0.5 | Soft signal; ritual adherence is usually a leading indicator, not a load-bearing rule |
+
+The auditor MUST surface the weighting choice in §11 Methodology so trend-mode comparisons stay apples-to-apples.
+
 ## Score rollup
 
 **Do NOT collapse the 7 axis scores into a single number.** A single composite hides the failure mode. Instead, the report's executive summary names the dominant pattern:

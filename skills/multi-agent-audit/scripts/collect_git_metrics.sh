@@ -6,6 +6,18 @@
 # Usage:
 #   ./collect_git_metrics.sh <repo-path> <window-start-YYYY-MM-DD> [window-end-YYYY-MM-DD]
 #
+# Environment variables:
+#   CONV_COMMITS_FILTER=1   (default: 1)
+#     When set, the script separately buckets Conventional Commits types
+#     (feat, fix, docs, chore, refactor, test, ci, style, perf, build,
+#     revert) into commits_by_conv_commit_type, leaving commits_by_persona_prefix
+#     for actual agent persona prefixes only. Disable with CONV_COMMITS_FILTER=0
+#     if your project uses persona prefixes that overlap conv-commits keywords.
+#   PERSONA_PREFIXES="iris,dave,kris,vera,ivy"
+#     Comma-separated list of persona slugs to recognize as prefixes.
+#     If unset, ALL non-conv-commit prefixes that look like persona slugs
+#     are accepted. Setting this explicitly produces cleaner output.
+#
 # Output: machine-readable JSON to stdout.
 #
 # Portability: bash 3.2+ (no associative arrays — macOS ships bash 3.2 by
@@ -35,6 +47,8 @@ fi
 REPO="$1"
 WINDOW_START="$2"
 WINDOW_END="${3:-$(date -u +%Y-%m-%d)}"
+CONV_COMMITS_FILTER="${CONV_COMMITS_FILTER:-1}"
+PERSONA_PREFIXES="${PERSONA_PREFIXES:-}"
 
 if [ ! -d "$REPO/.git" ]; then
     echo "error: $REPO is not a git repository" >&2
@@ -91,12 +105,32 @@ git -C "$REPO" log \
     --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
     --no-merges \
     --format='COMMIT|%H|%an|%s' 2>/dev/null \
-| awk -F'|' '
+| CONV_COMMITS_FILTER="$CONV_COMMITS_FILTER" PERSONA_PREFIXES="$PERSONA_PREFIXES" awk -F'|' '
+    BEGIN {
+        # Conventional Commits keywords — when CONV_COMMITS_FILTER=1, these
+        # are bucketed separately so they do not pollute persona attribution.
+        cc_filter = ENVIRON["CONV_COMMITS_FILTER"];
+        if (cc_filter == "") cc_filter = "1";
+        split("feat,fix,docs,chore,refactor,test,ci,style,perf,build,revert", cc_arr, ",");
+        for (i in cc_arr) cc_types[cc_arr[i]] = 1;
+
+        # Explicit persona allow-list (optional). If set, only these prefixes
+        # are accepted as personas; everything else goes to "other" bucket.
+        allow_personas = ENVIRON["PERSONA_PREFIXES"];
+        has_allow_list = 0;
+        if (allow_personas != "") {
+            has_allow_list = 1;
+            split(allow_personas, p_arr, ",");
+            for (i in p_arr) {
+                gsub(/^ +| +$/, "", p_arr[i]);
+                allowed[tolower(p_arr[i])] = 1;
+            }
+        }
+    }
     /^COMMIT/ {
         author = $3;
         # First "token" of the subject before a colon, lowercased, must be
-        # short (<= 30 chars) and contain no spaces — that is the persona
-        # prefix convention from agent-project-bootstrap.
+        # short (<= 30 chars) and contain no spaces.
         subject = $4;
         # Concatenate any extra fields back together (defensive against |
         # appearing in commit subjects).
@@ -109,14 +143,28 @@ git -C "$REPO" log \
         } else {
             prefix = "";
         }
-        if (prefix != "") {
-            persona_count[prefix]++;
-        } else {
+
+        if (prefix == "") {
+            # No prefix at all → attributed to author identity
             author_count[author]++;
+        } else if (cc_filter == "1" && (prefix in cc_types)) {
+            # Conventional-commits type → separate bucket, plus author attribution
+            conv_count[prefix]++;
+            author_count[author]++;
+        } else if (has_allow_list && !(prefix in allowed)) {
+            # Persona allow-list active and this prefix is not in it
+            # → unrecognized prefix; attribute to author and note
+            other_prefix_count[prefix]++;
+            author_count[author]++;
+        } else {
+            # Legitimate persona prefix
+            persona_count[prefix]++;
         }
     }
     END {
         for (k in persona_count) print "persona|" k "|" persona_count[k];
+        for (k in conv_count) print "conv|" k "|" conv_count[k];
+        for (k in other_prefix_count) print "other|" k "|" other_prefix_count[k];
         for (k in author_count) print "author|" k "|" author_count[k];
     }
 ' > "$ACTOR_TMP"
@@ -281,6 +329,14 @@ printf '  "commits_by_persona_prefix": {\n'
 emit_kv_object_from_file "$ACTOR_TMP" "persona"
 printf '  },\n'
 
+printf '  "commits_by_conv_commit_type": {\n'
+emit_kv_object_from_file "$ACTOR_TMP" "conv"
+printf '  },\n'
+
+printf '  "commits_by_other_prefix": {\n'
+emit_kv_object_from_file "$ACTOR_TMP" "other"
+printf '  },\n'
+
 printf '  "commits_by_author": {\n'
 emit_kv_object_from_file "$ACTOR_TMP" "author"
 printf '  },\n'
@@ -289,9 +345,16 @@ printf '  "lines_by_author": {\n'
 emit_kv_object_from_file "$LINES_TMP" "lines"
 printf '  },\n'
 
+printf '  "config": {\n'
+printf '    "conv_commits_filter": %s,\n' "$([ "$CONV_COMMITS_FILTER" = "1" ] && echo true || echo false)"
+printf '    "persona_prefixes_allowlist": "%s"\n' "$(json_escape "$PERSONA_PREFIXES")"
+printf '  },\n'
+
 printf '  "notes": [\n'
 printf '    "Persona-prefix attribution honors first colon-separated token of commit subject (case-insensitive, no spaces, [a-z0-9_-] only).",\n'
-printf '    "Commits without a recognized persona prefix attributed by author name.",\n'
+printf '    "Conventional Commits types (feat/fix/docs/chore/refactor/test/ci/style/perf/build/revert) bucketed separately when CONV_COMMITS_FILTER=1 (the default).",\n'
+printf '    "When PERSONA_PREFIXES is set, only those prefixes count as personas; other recognized prefixes go to commits_by_other_prefix.",\n'
+printf '    "Commits without a recognized persona prefix attributed by author name. With CONV_COMMITS_FILTER=1, conv-commit-typed commits ALSO contribute to commits_by_author so totals reconcile.",\n'
 printf '    "Reverts/hotfixes/fixups counted by grep over commit messages; refine for false positives in the auditor.",\n'
 printf '    "Large-commit proxy (>=20 files) is a weak signal for git add -A use; treat as inferred.",\n'
 printf '    "Portable: bash 3.2+ (no associative arrays; aggregation done in awk)."\n'

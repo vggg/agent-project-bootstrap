@@ -37,10 +37,13 @@ Before any data gathering, confirm with the human:
 2. **Backlog source** — GitHub issues, Linear, Jira, vault-tracked, or none.
 3. **Platform host and auth** — `github.com` vs GHE; confirm `gh auth status` works for the target repos. PR mining requires this.
 4. **Optional `actors.yaml`** — if the human declares the agent roster (especially non-committing agents like PR-review bots or cron librarians), pass that file in. Template at `assets/actors.example.yaml`.
-5. **Time window** — last 30 days, last 90 days, custom range, or all-time. Default: last 90 days.
-6. **Output format** — markdown only, or markdown + HTML dashboard. Default: markdown only.
+5. **Time window** — last 30 days, last 90 days, custom range, or all-time. Default: last 90 days. **If the audit purpose is to measure the impact of a specific event (workforce change, process change), surface this trade-off and consider tuning the window to bracket the event.**
+6. **Output format** — markdown only, markdown + HTML dashboard, or short-form. Default: markdown + HTML (v1.3+).
 7. **Per-persona scorecards** — yes/no. Default: yes if ≥3 personas are detected.
 8. **Snapshot output location** — where to write the report and snapshot JSON. **Must be outside the audited repos.** Default: the audited project's *coordination/collab repo* if one exists (e.g., for `agent-project-bootstrap` layouts the collab repo's `audit/` folder), or `~/Workspace/audit-reports/<project>/` otherwise.
+9. **Auditor independence** — is the invoking auditor (Claude Code session OR the `project-auditor` subagent) itself a participant in the audited project (e.g., one of the declared personas)? If yes, capture the participant_personas list and surface the conflict-of-interest in §11 Methodology. **Honesty rule** (v1.3+): a participant auditor's findings on Agents / Coordination / Knowledge-capture dimensions may be skewed; flag, do not suppress.
+10. **Operational fidelity weighting** — default (equal weight across dimensions) or weighted (caller supplies per-dimension weights, OR uses the v1.3 default weights — see `references/metric-taxonomy.md § Operational fidelity weighting`).
+11. **Timeline events** — include a §9.5 Timeline section? Default: yes. See `references/timeline.md` for the event taxonomy.
 
 Use HTTPS for any clone. Do not configure git identity in audited repos.
 
@@ -278,18 +281,29 @@ skills/multi-agent-audit/
   references/
     discovery.md                      # Step 0 procedure
     actor-resolution.md               # Step 0.5 actor enumeration
-    drift-analysis.md                 # Step 0.5 dual-lens scoring
-    metric-taxonomy.md                # universal metric definitions + 1-5 rubric
+    drift-analysis.md                 # Step 0.5 dual-lens scoring (v1.3: multi-substrate Agents)
+    metric-taxonomy.md                # universal metric definitions + 1-5 rubric + v1.3 weighting
     platform-integrations.md          # gh / CI / coverage queries (read-only)
     advanced-metrics.md               # DORA + network analysis
-    confidence-and-trends.md          # confidence labels + snapshot schema + trend mode
-    bootstrap-adapter.md              # agent-project-bootstrap v1.x layout mining
-    report-template.md                # markdown report skeleton
+    confidence-and-trends.md          # confidence labels + snapshot v1.1 schema + trend mode + addenda
+    bootstrap-adapter.md              # agent-project-bootstrap v1.x layout mining (v1.3: 5-substrate persona attribution)
+    timeline.md                       # v1.3 — important-events taxonomy + extraction rules
+    report-template.md                # markdown report skeleton (v1.3: §9.5 timeline + §11b addenda + independence)
+    coverage-parsers.md               # v1.3 — Istanbul / vitest / lcov / cobertura / Python coverage formats
+    short-form-mode.md                # v1.3 — single-page executive-summary mode
   assets/
     actors.example.yaml               # roster declaration template
-    report-template.html              # Chart.js dashboard template
+    report-template.html              # Chart.js dashboard template (v1.3: timeline + addenda + per-persona scorecards)
   scripts/
-    collect_git_metrics.sh            # read-only git metric collection
+    collect_git_metrics.sh            # read-only git metric collection (v1.3: conv-commits filter)
+    trend_reader.py                   # v1.3 — reads snapshots/; emits §10 Trend section
+    extract_timeline.py               # v1.3 — extracts important events; emits §9.5 Timeline
+    compute_centrality.py             # v1.3 — betweenness centrality on the coordination network
+    parse_coverage.py                 # v1.3 — coverage delta from common report formats
+    render_report.py                  # v1.3 — renders the HTML dashboard from snapshot + template
+    persona_attribution.py            # v1.3 — per-persona PR attribution via the multi-substrate lens
+  tests/
+    subagent_isolation_smoke.md       # v1.3 — verifies the project-auditor subagent can't write to audited repos
   agents/
     project-auditor.md                # subagent definition (Claude Code)
 ```
