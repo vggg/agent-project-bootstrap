@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multi-agent audit — {{PROJECT_NAME}} — {{AUDIT_DATE}}</title>
+<style>
+  :root {
+    --bg: #0c0a09;
+    --panel: #1c1917;
+    --border: #292524;
+    --text: #f5f5f4;
+    --muted: #a8a29e;
+    --emerald: #10b981;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --sky: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 2rem 2.5rem 1.5rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0; font-style: italic; letter-spacing: -0.01em; }
+  h1 .accent { color: var(--emerald); }
+  h2 {
+    font-size: 1.1rem; margin: 2rem 0 0.75rem;
+    letter-spacing: -0.005em; color: var(--text);
+  }
+  h3 {
+    font-size: 0.95rem; margin: 1.25rem 0 0.5rem;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .meta {
+    color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem;
+  }
+  main { padding: 1.5rem 2.5rem 4rem; max-width: 1200px; }
+  .verdict-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem;
+    margin-top: 1rem; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 1.5rem;
+  }
+  .verdict-card .pattern { grid-column: 1; }
+  .verdict-card .pattern-name {
+    font-size: 1.2rem; font-weight: 600;
+    color: var(--emerald);
+  }
+  .verdict-card .pattern-name.warn { color: var(--amber); }
+  .verdict-card .pattern-name.bad { color: var(--rose); }
+  .verdict-card .metric { text-align: left; }
+  .verdict-card .metric .label {
+    color: var(--muted); font-size: 0.75rem; text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .verdict-card .metric .value {
+    font-size: 1.5rem; font-weight: 600; margin-top: 0.25rem;
+  }
+  .grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;
+  }
+  .grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .grid.four { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.25rem;
+  }
+  .card h3 { margin-top: 0; }
+  .card .big {
+    font-size: 1.75rem; font-weight: 600; margin: 0.25rem 0;
+  }
+  .card .sub { color: var(--muted); font-size: 0.8rem; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem;
+  }
+  th, td {
+    padding: 0.5rem 0.75rem; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--muted); font-weight: 600; font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .conf-measured { color: var(--emerald); font-size: 0.75rem; }
+  .conf-inferred { color: var(--amber); font-size: 0.75rem; }
+  .conf-not-measurable { color: var(--rose); font-size: 0.75rem; font-style: italic; }
+  .gap-positive { color: var(--rose); }
+  .gap-neutral  { color: var(--muted); }
+  .gap-aligned  { color: var(--emerald); }
+  canvas { max-width: 100%; }
+  .callout {
+    border-left: 3px solid var(--amber); padding: 0.75rem 1rem;
+    background: rgba(245, 158, 11, 0.08); margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .callout.bad { border-color: var(--rose); background: rgba(244, 63, 94, 0.08); }
+  .callout.good { border-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+  footer {
+    padding: 1.5rem 2.5rem; border-top: 1px solid var(--border);
+    color: var(--muted); font-size: 0.8rem;
+  }
+  a { color: var(--sky); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Multi-agent audit — <span class="accent">{{PROJECT_NAME}}</span></h1>
+  <div class="meta">
+    Audit date: <strong>{{AUDIT_DATE}}</strong>
+    &middot; Window: <strong>{{WINDOW_START}} → {{WINDOW_END}}</strong> ({{WINDOW_DAYS}} days)
+    &middot; Skill v{{SKILL_VERSION}}
+  </div>
+</header>
+
+<main>
+
+  <section class="verdict-card" id="verdict">
+    <div class="pattern">
+      <div style="color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">Verdict</div>
+      <div class="pattern-name" id="verdict-pattern">{{VERDICT_PATTERN}}</div>
+      <div style="color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem;">{{VERDICT_SUMMARY}}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Intervention tax</div>
+      <div class="value" id="intervention-tax">{{INTERVENTION_TAX}}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Autonomy split</div>
+      <div class="value" id="autonomy-split">{{AUTONOMY_SPLIT}}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Operational fidelity</div>
+      <div class="value" id="operational-fidelity">{{OPERATIONAL_FIDELITY}}</div>
+    </div>
+  </section>
+
+  {{#FALSE_WIN_CALLOUT}}
+  <div class="callout bad">
+    <strong>False-win callout.</strong>
+    Autonomy split is high ({{AUTONOMY_SPLIT}}) but intervention tax is also high ({{INTERVENTION_TAX}}) —
+    the multi-agent setup is doing more work than a single-agent or pure-human flow would have.
+    Consider whether the overhead is earning its keep.
+  </div>
+  {{/FALSE_WIN_CALLOUT}}
+
+  <h2>Designed model</h2>
+  <div class="card">
+    <div><strong>Layout:</strong> {{LAYOUT_FAMILY}}</div>
+    <div><strong>Backlog:</strong> {{BACKLOG_SOURCE}}</div>
+    <div><strong>Coordination substrate:</strong> {{COORDINATION_SUBSTRATE}}</div>
+    <div><strong>Declared roster:</strong> {{N_DECLARED_ACTORS}} actors</div>
+    <div style="margin-top: 0.5rem; color: var(--muted); font-size: 0.85rem;">
+      Source documents: {{SOURCE_DOCS}}
+    </div>
+  </div>
+
+  <h2>Drift scorecard</h2>
+  <div class="card">
+    <table id="drift-table">
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>Intended</th>
+          <th>Actual</th>
+          <th>Gap</th>
+          <th>Conf.</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- {{#DRIFT_ROWS}}
+        <tr>
+          <td>{{DIMENSION}}</td>
+          <td>{{INTENDED}}</td>
+          <td>{{ACTUAL}}</td>
+          <td class="gap-{{GAP_CLASS}}">{{GAP}}</td>
+          <td><span class="conf-{{CONFIDENCE_CLASS}}">{{CONFIDENCE}}</span></td>
+        </tr>
+        {{/DRIFT_ROWS}} -->
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Headlines</h2>
+  <div class="grid four">
+    <div class="card">
+      <h3>Intervention tax</h3>
+      <div class="big" style="color: var(--amber);">{{INTERVENTION_TAX}}</div>
+      <div class="sub">{{HUMAN_INTERVENTIONS}} touches / {{AUTONOMOUS_TASKS}} autonomous tasks</div>
+    </div>
+    <div class="card">
+      <h3>Autonomy split</h3>
+      <canvas id="autonomy-donut" width="160" height="160"></canvas>
+    </div>
+    <div class="card">
+      <h3>DORA — lead time p50</h3>
+      <div class="big">{{LEAD_TIME_P50}}d</div>
+      <div class="sub">p90: {{LEAD_TIME_P90}}d</div>
+    </div>
+    <div class="card">
+      <h3>Operational fidelity</h3>
+      <div class="big" style="color: var(--emerald);">{{OPERATIONAL_FIDELITY}}</div>
+      <div class="sub">{{FIDELITY_NUMERATOR}} / {{FIDELITY_DENOMINATOR}} dimensions verified</div>
+    </div>
+  </div>
+
+  <h2>Per-persona activity</h2>
+  <div class="card">
+    <canvas id="persona-bars" height="240"></canvas>
+  </div>
+
+  <h2>Throughput trend</h2>
+  <div class="card">
+    <canvas id="throughput-trend" height="200"></canvas>
+  </div>
+
+  <h2>Score radar</h2>
+  <div class="card">
+    <canvas id="score-radar" height="320"></canvas>
+  </div>
+
+  <h2>Agent inventory</h2>
+  <div class="card">
+    <table id="agent-inventory">
+      <thead>
+        <tr>
+          <th>Actor</th><th>Class</th><th>Declared?</th><th>Observed?</th>
+          <th class="num">Commits</th><th class="num">PRs opened</th>
+          <th class="num">PRs reviewed</th><th class="num">Handoffs</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- {{#AGENTS}} ... {{/AGENTS}} -->
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Ranked opportunities</h2>
+  <div class="card">
+    <ol id="opportunities">
+      <!-- {{#OPPORTUNITIES}}
+      <li>
+        <strong>{{WHAT}}</strong> — {{WHY}}
+        <div style="color: var(--muted); font-size: 0.85rem;">How: {{HOW}} &middot; Score: {{SCORE}}/9</div>
+      </li>
+      {{/OPPORTUNITIES}} -->
+    </ol>
+  </div>
+
+  <h2>Trend</h2>
+  <div class="card" id="trend-card">
+    <!-- {{#TREND_AVAILABLE}}
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Previous</th><th>Current</th><th>Δ</th></tr>
+      </thead>
+      <tbody>
+        {{#TREND_ROWS}}
+        <tr>
+          <td>{{METRIC}}</td>
+          <td>{{PREVIOUS}}</td>
+          <td>{{CURRENT}}</td>
+          <td class="{{DELTA_DIR}}">{{DELTA}}</td>
+        </tr>
+        {{/TREND_ROWS}}
+      </tbody>
+    </table>
+    {{/TREND_AVAILABLE}} -->
+    <!-- {{^TREND_AVAILABLE}}
+    <div class="sub">Only one snapshot exists — trend data appears after the second audit.</div>
+    {{/TREND_AVAILABLE}} -->
+  </div>
+
+  <h2>Methodology</h2>
+  <div class="card">
+    <div><strong>Sources:</strong> {{SOURCES}}</div>
+    <div><strong>Sampling:</strong> {{SAMPLING}}</div>
+    <div><strong>Identity resolution:</strong> {{IDENTITY_RULES}}</div>
+    <div><strong>Confidence summary:</strong>
+      <span class="conf-measured">measured {{N_MEASURED}}</span> &middot;
+      <span class="conf-inferred">inferred {{N_INFERRED}}</span> &middot;
+      <span class="conf-not-measurable">not measurable {{N_NOT_MEASURABLE}}</span>
+    </div>
+  </div>
+
+  <h2>Caveats and data gaps</h2>
+  <div class="card">
+    <ul>
+      <!-- {{#CAVEATS}} <li>{{CAVEAT}}</li> {{/CAVEATS}} -->
+    </ul>
+  </div>
+
+</main>
+
+<footer>
+  Generated by the <strong>multi-agent-audit</strong> skill, part of
+  <a href="https://github.com/vggg/agent-project-bootstrap">vggg/agent-project-bootstrap</a>.
+  Read-only audit — no modifications were made to the audited project.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  // The audit's renderer fills these placeholders with real numbers before
+  // the HTML is written to disk. This template ships with sample values so
+  // a previewing browser can see the layout.
+
+  const data = {
+    autonomy: {
+      autonomous: {{AUTONOMOUS_TASKS_RAW|default:29}},
+      hybrid: {{HYBRID_TASKS_RAW|default:46}},
+      human: {{HUMAN_TASKS_RAW|default:18}}
+    },
+    personas: {
+      labels: {{PERSONA_LABELS_JSON|default:'["Iris","Dave","Kris","Vera","Ivy","Vikram"]'}},
+      commits: {{PERSONA_COMMITS_JSON|default:'[47,38,22,19,11,28]'}},
+      reviews: {{PERSONA_REVIEWS_JSON|default:'[0,6,11,18,0,23]'}},
+      handoffs: {{PERSONA_HANDOFFS_JSON|default:'[12,8,5,14,6,31]'}}
+    },
+    throughput: {
+      weeks: {{WEEK_LABELS_JSON|default:'["W1","W2","W3","W4","W5","W6","W7","W8","W9","W10","W11","W12","W13"]'}},
+      commits: {{WEEKLY_COMMITS_JSON|default:'[12,18,8,22,15,28,19,9,31,17,14,22,20]'}},
+      prs: {{WEEKLY_PRS_JSON|default:'[3,5,2,7,4,8,5,2,9,4,3,6,5]'}}
+    },
+    radar: {
+      labels: ["Throughput","Autonomy","Coordination","Quality","Guardrail","Knowledge","Op. Fidelity"],
+      scores: {{AXIS_SCORES_JSON|default:'[4,3,3,4,2,4,4]'}}
+    }
+  };
+
+  // Autonomy donut
+  new Chart(document.getElementById('autonomy-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Autonomous','Hybrid','Human'],
+      datasets: [{
+        data: [data.autonomy.autonomous, data.autonomy.hybrid, data.autonomy.human],
+        backgroundColor: ['#10b981','#f59e0b','#38bdf8'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { color: '#f5f5f4', font: { size: 11 } } } },
+      cutout: '60%'
+    }
+  });
+
+  // Per-persona bars
+  new Chart(document.getElementById('persona-bars'), {
+    type: 'bar',
+    data: {
+      labels: data.personas.labels,
+      datasets: [
+        { label: 'Commits', data: data.personas.commits, backgroundColor: '#10b981' },
+        { label: 'Reviews', data: data.personas.reviews, backgroundColor: '#38bdf8' },
+        { label: 'Handoffs', data: data.personas.handoffs, backgroundColor: '#f59e0b' }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#f5f5f4' } } },
+      scales: {
+        x: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' } },
+        y: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' }, beginAtZero: true }
+      }
+    }
+  });
+
+  // Throughput trend
+  new Chart(document.getElementById('throughput-trend'), {
+    type: 'line',
+    data: {
+      labels: data.throughput.weeks,
+      datasets: [
+        { label: 'Commits', data: data.throughput.commits, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.3 },
+        { label: 'PRs',     data: data.throughput.prs,     borderColor: '#38bdf8', backgroundColor: 'transparent', tension: 0.3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#f5f5f4' } } },
+      scales: {
+        x: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' } },
+        y: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' }, beginAtZero: true }
+      }
+    }
+  });
+
+  // Score radar
+  new Chart(document.getElementById('score-radar'), {
+    type: 'radar',
+    data: {
+      labels: data.radar.labels,
+      datasets: [{
+        label: 'Score (1-5)',
+        data: data.radar.scores,
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+        pointBackgroundColor: '#10b981'
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        r: {
+          angleLines: { color: '#292524' },
+          grid: { color: '#292524' },
+          pointLabels: { color: '#f5f5f4', font: { size: 11 } },
+          ticks: { display: false, beginAtZero: true, max: 5, stepSize: 1 },
+          min: 0, max: 5
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+</script>
+
+</body>
+</html>

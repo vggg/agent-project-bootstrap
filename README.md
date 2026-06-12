@@ -6,6 +6,8 @@ a single runtime-neutral `persona.yaml` hydrates working personas on whatever AI
 you run — Claude Code, code-puppy, or anything else — at the highest fidelity that runtime
 supports. It started as a Claude Code plugin and remains fully compatible with it.
 
+**As of v1.2 this repo ships a sister skill, [`multi-agent-audit`](skills/multi-agent-audit/),** for **grading** multi-agent projects with evidence — INTERVENTION TAX, dual-lens drift, operational fidelity — instead of vibes. Read-only by construction. See [Sister skill](#sister-skill-multi-agent-audit).
+
 Three project modes are available:
 
 - **`vault-project`** — the original lean pattern. Vault-based five-agent project (librarian + two devs + analyst + designer), suitable for solo / local-team work where all collaborators share the same personal vault.
@@ -141,6 +143,23 @@ Key files:
 - `references/{capability-vocab.v1,persona.schema,manifest.schema}.md` — the canonical spec.
 
 See [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for the full design.
+
+## Sister skill — `multi-agent-audit`
+
+The other half of the kit: a **read-only audit skill** that grades multi-agent projects against an evidence-based rubric. Bootstrap **builds** projects; audit **grades** them.
+
+| Property | Detail |
+|---|---|
+| **Location** | [`skills/multi-agent-audit/`](skills/multi-agent-audit/) |
+| **Headline metric** | INTERVENTION TAX = human touches per autonomous task. High autonomy split + high tax = false win. |
+| **Read-only** | Never modifies the audited project. Tool allow-list omits `Edit`; `Write` only for the report, outside the audited repos. |
+| **Framework-neutral** | Works on `agent-project-bootstrap`, CrewAI, LangGraph, AutoGen, Copilot agents, custom loops. |
+| **Two-layer** | Universal WHAT-to-measure + per-layout WHERE-it-lives discovery (Step 0). |
+| **Outputs** | Markdown report + optional self-contained HTML dashboard (Chart.js) + machine-readable snapshot JSON for trend analysis. |
+
+Invoke via the bundled `project-auditor` subagent (`skills/multi-agent-audit/agents/project-auditor.md`) which enforces the read-only rule at the tool layer, or read `SKILL.md` directly from any runtime.
+
+Full workflow: Discovery → Agent Inventory + DUAL-LENS drift pass → Metrics mining (platform, not just git) → 1–5 axis scoring → Markdown/HTML report → snapshot persistence (trend mode kicks in once ≥2 snapshots exist).
 
 ## Installation
 

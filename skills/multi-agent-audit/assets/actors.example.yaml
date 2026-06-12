@@ -1,0 +1,214 @@
+# actors.yaml — declared roster for the multi-agent-audit skill
+#
+# Optional input. If you pass an actors.yaml to the auditor, it uses this as
+# the INTENDED lens (Step 0.5 dual-lens analysis). Without it, the auditor
+# falls back to discovered declarations (manifest.yaml, persona files,
+# CONVENTIONS.md, COORDINATION.md).
+#
+# Pass especially for NON-COMMITTING agents — PR-review bots, cron librarians
+# whose work lives in a vault outside the audited repos, approval-only humans
+# who never commit. The auditor cannot infer these from git log; declare them
+# here or they show up as missing in the actor inventory.
+#
+# Schema is permissive. Required fields are commented as such; everything else
+# helps the auditor but isn't strictly needed.
+
+project: GardenTwin                # required — the project name
+time_window:                       # optional — overrides auditor default
+  start: 2026-03-14                #   YYYY-MM-DD; defaults to 90 days ago
+  end: 2026-06-12                  #   YYYY-MM-DD; defaults to today
+  # or:
+  # window_days: 90                #   integer; if start/end omitted
+
+actors:
+  # -----------------------------------------------------------------------
+  # Human actors
+  # -----------------------------------------------------------------------
+  - slug: vikram                   # required — canonical actor key
+    name: Vikram Godbole           # optional — display name
+    class: human                   # required — human | autonomous | hybrid
+    role: project-owner            # optional — free-text role label
+    identities:                    # optional but recommended
+      - email: vikram.godbole@shalkiengineers.com
+      - email: vikram@example.com  # if the same person has multiple emails
+      - github_login: vggg
+      - persona_prefix: ""         # no prefix; commits as themselves
+    write_areas:                   # optional — declared scope
+      - "*"                        # owner; writes anywhere
+    notes: |
+      Acts as approver / final reviewer / merger. Also commits directly
+      under personal identity for project-meta files.
+
+  - slug: pranav
+    name: Pranav (last name TBD)
+    class: human
+    role: ios-dev
+    identities:
+      - github_login: vadpranav30
+      - email: vadpranav30@users.noreply.github.com
+    write_areas:
+      - ArkShark11/GardenTwinIOS/**
+    notes: |
+      Remote collaborator. No vault access; routed via agent-pranav GitHub
+      label on issues. Read+comment only on web repo.
+
+  # -----------------------------------------------------------------------
+  # Hybrid agents (human-initiated, agent-decided within session)
+  # -----------------------------------------------------------------------
+  - slug: dave
+    name: Dave (dev agent 1)
+    class: hybrid
+    role: dev
+    runtime: claude-code           # optional — runtime where this agent lives
+    trigger: interactive           # interactive | event | cron
+    identities:
+      - email: dave@trellisiq.online
+      - persona_prefix: "dave:"
+    write_areas:
+      - src/**
+      - tests/**
+      - prisma/**
+      - docs/**
+    notes: |
+      ON LONG BREAK from 2026-06-10. Expect 0 commits in recent window.
+      Surface as declared-but-not-operationalized if window includes
+      the break.
+
+  - slug: kris
+    name: Kris (dev agent 2 — sole dev as of 2026-06-10)
+    class: hybrid
+    role: dev
+    runtime: claude-code
+    trigger: interactive
+    identities:
+      - email: kris@trellisiq.online
+      - persona_prefix: "kris:"
+    write_areas:
+      - src/**
+      - tests/**
+      - prisma/**
+      - docs/**
+    notes: |
+      Absorbed Dave's responsibilities 2026-06-10.
+
+  - slug: vera
+    name: Vera (analyst + designer as of 2026-06-10)
+    class: hybrid
+    role: analyst-designer
+    runtime: claude-code
+    trigger: interactive
+    identities:
+      - email: analyst@trellisiq.online
+      - email: designer@trellisiq.online       # absorbed Ivy's identity
+      - persona_prefix: "vera:"
+    write_areas:
+      - projects/GardenTwin/ClaudeAnalyst/**
+      - projects/GardenTwinIOS/ClaudeAnalyst/**
+      - projects/GardenTwin/ClaudeDesigner/**  # absorbed from Ivy
+    notes: |
+      Read-only on code. Files GitHub issues. Combined role since 2026-06-10
+      restructure.
+
+  - slug: ivy
+    name: Ivy (designer + PM)
+    class: hybrid
+    role: designer-pm
+    runtime: claude-code
+    trigger: interactive
+    identities:
+      - email: designer@trellisiq.online
+      - persona_prefix: "ivy:"
+    write_areas:
+      - projects/GardenTwin/ClaudeDesigner/**
+    notes: |
+      ON LONG BREAK from 2026-06-10. Read-only on code.
+
+  # -----------------------------------------------------------------------
+  # Autonomous agents (run without per-session human prompting)
+  # -----------------------------------------------------------------------
+  - slug: iris
+    name: Iris (vault librarian)
+    class: hybrid                  # currently hybrid; v1 plan is cloud-routine cron
+    role: librarian
+    runtime: claude-code
+    trigger: interactive           # actual; declared trigger may be cron
+    identities:
+      - email: vikram.godbole@shalkiengineers.com
+      - persona_prefix: "iris:"
+    write_areas:
+      - wiki/**
+      - _meta/**
+      - _handoff/**
+    declared_trigger: cron         # what's declared vs actual; auditor compares
+    declared_schedule: "0 15 * * *"
+    notes: |
+      Declared as cron in some docs but actually runs as interactive sessions.
+      Drift candidate.
+
+  - slug: dependabot
+    name: Dependabot
+    class: autonomous
+    role: dependency-bot
+    runtime: github-app
+    trigger: cron                  # weekly scan
+    identities:
+      - github_login: dependabot[bot]
+    write_areas:
+      - package.json
+      - package-lock.json
+      - pnpm-lock.yaml
+    notes: |
+      App-based; opens dependency-bump PRs.
+
+  # -----------------------------------------------------------------------
+  # Non-committing agents (declare these — auditor can't infer)
+  # -----------------------------------------------------------------------
+  # - slug: pr-review-bot
+  #   name: Example PR Review Bot
+  #   class: autonomous
+  #   role: pr-reviewer
+  #   runtime: github-action
+  #   trigger: event
+  #   identities:
+  #     - github_login: example-pr-bot[bot]
+  #   write_areas: []              # reviews only; no writes
+  #   committing: false            # explicit signal
+  #   notes: |
+  #     Appears in gh api /pulls/<n>/reviews but never commits.
+  #     Without this declaration, the auditor would miss it from git log.
+
+guardrails:                        # optional — declared rules to verify
+  - rule: no-force-push
+    scope: main
+    enforced_by: branch-protection # what should enforce it
+  - rule: no-direct-push-main
+    scope: main
+    enforced_by: branch-protection
+  - rule: no-add-dash-a
+    scope: vault
+    enforced_by: instruction-only  # honestly classified
+  - rule: pr-must-close-issue
+    scope: all-prs
+    enforced_by: instruction-only
+
+rituals:                           # optional — declared rituals to verify
+  - ritual: session-start-checklist
+    declared_in: COORDINATION.md
+    applies_to: [dave, kris, vera, ivy]
+  - ritual: dev-log-per-session
+    declared_in: COORDINATION.md
+    applies_to: [dave, kris]
+    expected_path: projects/GardenTwin/ClaudeDevAgent/dev-log/YYYY-MM-DD.md
+  - ritual: eod-log
+    declared_in: workspace-CLAUDE.md
+    applies_to: [vera, ivy]
+    expected_path: projects/GardenTwin/Claude<Role>/YYYY-MM-DD-eod.md
+  - ritual: handoff-marks-done
+    declared_in: COORDINATION.md
+    applies_to: [all]
+    max_open_age_days: 7
+
+output:
+  format: markdown                 # markdown | both (markdown + HTML)
+  per_persona_scorecards: true
+  snapshot_location: "<collab-repo>/audit/snapshots"  # or ~/Workspace/audit-reports/<project>/snapshots
