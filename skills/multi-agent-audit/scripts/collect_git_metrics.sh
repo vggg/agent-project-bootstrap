@@ -8,14 +8,18 @@
 #
 # Output: machine-readable JSON to stdout.
 #
+# Portability: bash 3.2+ (no associative arrays — macOS ships bash 3.2 by
+# default and Apple does not ship bash 4+). All aggregation is done in awk,
+# which has portable associative arrays.
+#
 # Hard rules:
-#   - This script ONLY runs read-only git commands: log, shortlog, diff,
-#     for-each-ref, rev-parse. It never commits, pushes, fetches, or
-#     modifies any state in the audited repo.
-#   - It uses `git -C <repo>` exclusively, so it never cd's into the
-#     audited repo (the auditor's working directory stays outside).
-#   - If a query is not safe or not available, it emits a null with a
-#     reason field in the JSON.
+#   - This script ONLY runs read-only git commands: log, shortlog, rev-parse.
+#     It never commits, pushes, fetches, or modifies any state in the audited
+#     repo.
+#   - It uses `git -C <repo>` exclusively, so it never cd's into the audited
+#     repo (the auditor's working directory stays outside).
+#   - If a query is not safe or not available, the script emits the field
+#     with the value null and a reason in the notes array.
 
 set -eu
 
@@ -37,8 +41,11 @@ if [ ! -d "$REPO/.git" ]; then
     exit 1
 fi
 
-# Guard rail: refuse to run inside the audited repo
-if [ "$(pwd)" = "$(cd "$REPO" 2>/dev/null && pwd)" ]; then
+# Guard rail: refuse to run inside the audited repo (the auditor's working
+# directory should stay outside).
+REPO_REAL="$(cd "$REPO" 2>/dev/null && pwd -P)"
+PWD_REAL="$(pwd -P)"
+if [ "$PWD_REAL" = "$REPO_REAL" ]; then
     echo "error: invoke from outside the audited repo (pwd == repo path)" >&2
     exit 1
 fi
@@ -47,43 +54,111 @@ fi
 # Helpers
 # -----------------------------------------------------------------------------
 
-# JSON-escape a string (basic; doesn't handle every edge case but enough for
-# author names and short subject lines).
-jq_escape() {
-    printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g' \
-        | tr -d '\n\r' | sed 's/$//'
+# Compute window length in days, portable across macOS BSD date and GNU date.
+window_days() {
+    local start="$1" end="$2"
+    if date -u -j -f "%Y-%m-%d" "$start" "+%s" >/dev/null 2>&1; then
+        # macOS / BSD date
+        local s e
+        s=$(date -u -j -f "%Y-%m-%d" "$start" "+%s")
+        e=$(date -u -j -f "%Y-%m-%d" "$end" "+%s")
+        echo $(( (e - s) / 86400 ))
+    else
+        # GNU date (Linux)
+        local s e
+        s=$(date -u -d "$start" "+%s")
+        e=$(date -u -d "$end" "+%s")
+        echo $(( (e - s) / 86400 ))
+    fi
 }
 
-# -----------------------------------------------------------------------------
-# 1. Commits per canonical actor (post-resolution; honors persona prefix when
-#    present, else falls back to author name).
-# -----------------------------------------------------------------------------
+WINDOW_DAYS=$(window_days "$WINDOW_START" "$WINDOW_END")
+[ "$WINDOW_DAYS" -lt 1 ] && WINDOW_DAYS=1
 
-# Raw commit list in window
-COMMITS_RAW=$(git -C "$REPO" log \
+# -----------------------------------------------------------------------------
+# 1. Per-actor commit attribution (persona-prefix-aware), in awk.
+# -----------------------------------------------------------------------------
+#
+# Output of this awk pass: a temp file with one line per actor in the form
+#   KIND|name|count
+# where KIND is "persona" (commits attributed via persona prefix like "iris:")
+# or "author" (commits attributed via git author name when no prefix matched).
+
+ACTOR_TMP=$(mktemp -t mam-actor.XXXXXX)
+trap 'rm -f "$ACTOR_TMP" "$LINES_TMP" 2>/dev/null' EXIT
+
+git -C "$REPO" log \
     --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
-    --format='%H|%an|%ae|%s' \
-    --no-merges 2>/dev/null || echo "")
-
-# Per-author tally honoring persona prefix
-declare -A AUTHOR_COMMITS
-declare -A PERSONA_COMMITS
-
-while IFS='|' read -r sha author email subject; do
-    [ -z "$sha" ] && continue
-
-    # Detect persona prefix at start of subject (e.g., "iris: ingest | ...")
-    PREFIX=$(echo "$subject" | awk -F: '{ if (NF >= 2 && length($1) <= 30 && $1 !~ / /) print tolower($1); else print "" }')
-
-    if [ -n "$PREFIX" ]; then
-        PERSONA_COMMITS["$PREFIX"]=$(( ${PERSONA_COMMITS["$PREFIX"]:-0} + 1 ))
-    else
-        AUTHOR_COMMITS["$author"]=$(( ${AUTHOR_COMMITS["$author"]:-0} + 1 ))
-    fi
-done <<< "$COMMITS_RAW"
+    --no-merges \
+    --format='COMMIT|%H|%an|%s' 2>/dev/null \
+| awk -F'|' '
+    /^COMMIT/ {
+        author = $3;
+        # First "token" of the subject before a colon, lowercased, must be
+        # short (<= 30 chars) and contain no spaces — that is the persona
+        # prefix convention from agent-project-bootstrap.
+        subject = $4;
+        # Concatenate any extra fields back together (defensive against |
+        # appearing in commit subjects).
+        for (i = 5; i <= NF; i++) subject = subject "|" $i;
+        colon = index(subject, ":");
+        if (colon > 0 && colon <= 31) {
+            prefix = tolower(substr(subject, 1, colon - 1));
+            # Reject anything with spaces or punctuation we do not expect.
+            if (prefix !~ /^[a-z0-9_-]+$/) prefix = "";
+        } else {
+            prefix = "";
+        }
+        if (prefix != "") {
+            persona_count[prefix]++;
+        } else {
+            author_count[author]++;
+        }
+    }
+    END {
+        for (k in persona_count) print "persona|" k "|" persona_count[k];
+        for (k in author_count) print "author|" k "|" author_count[k];
+    }
+' > "$ACTOR_TMP"
 
 # -----------------------------------------------------------------------------
-# 2. Merges + total commits
+# 2. Per-author lines added / removed (shortstat aggregation in awk).
+# -----------------------------------------------------------------------------
+
+LINES_TMP=$(mktemp -t mam-lines.XXXXXX)
+
+git -C "$REPO" log \
+    --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
+    --no-merges --shortstat \
+    --format='AUTHOR|%an' 2>/dev/null \
+| awk '
+    /^AUTHOR\|/ {
+        sub(/^AUTHOR\|/, "");
+        current = $0;
+        next;
+    }
+    /file.* changed/ {
+        ins = 0; del = 0;
+        if (match($0, /[0-9]+ insertion/)) {
+            n = substr($0, RSTART, RLENGTH);
+            gsub(/[^0-9]/, "", n);
+            ins = n + 0;
+        }
+        if (match($0, /[0-9]+ deletion/)) {
+            n = substr($0, RSTART, RLENGTH);
+            gsub(/[^0-9]/, "", n);
+            del = n + 0;
+        }
+        inserts[current] += ins;
+        deletes[current] += del;
+    }
+    END {
+        for (a in inserts) print a "|" inserts[a] "|" deletes[a];
+    }
+' > "$LINES_TMP"
+
+# -----------------------------------------------------------------------------
+# 3. Totals
 # -----------------------------------------------------------------------------
 
 TOTAL_COMMITS=$(git -C "$REPO" log \
@@ -94,8 +169,13 @@ TOTAL_MERGES=$(git -C "$REPO" log \
     --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
     --merges --oneline 2>/dev/null | wc -l | tr -d ' ')
 
+ACTIVE_DAYS=$(git -C "$REPO" log \
+    --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
+    --no-merges --format='%ad' --date=short 2>/dev/null \
+    | sort -u | wc -l | tr -d ' ')
+
 # -----------------------------------------------------------------------------
-# 3. Rework signals: reverts, hotfixes, fix-ups
+# 4. Rework signals
 # -----------------------------------------------------------------------------
 
 REVERT_COUNT=$(git -C "$REPO" log \
@@ -111,128 +191,109 @@ FIXUP_COUNT=$(git -C "$REPO" log \
     --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
     --grep='^fixup!\|^squash!\|fix-up:' --oneline 2>/dev/null | wc -l | tr -d ' ')
 
-# Generic "fix:" prefix (broader signal — includes both routine fixes and
-# rework; the auditor's intervention-tax calc cares about fix-ups that
-# follow autonomous-agent commits, computed separately).
 FIX_PREFIX_COUNT=$(git -C "$REPO" log \
     --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
     --grep='^fix:\|^chore: fix\|^refactor: fix' --oneline 2>/dev/null | wc -l | tr -d ' ')
 
-# -----------------------------------------------------------------------------
-# 4. Lines added / removed by author (--shortstat aggregated)
-# -----------------------------------------------------------------------------
-
-SHORTSTAT_RAW=$(git -C "$REPO" log \
-    --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
-    --no-merges --shortstat --format='AUTHOR|%an' 2>/dev/null || echo "")
-
-declare -A AUTHOR_INSERTIONS
-declare -A AUTHOR_DELETIONS
-CURRENT_AUTHOR=""
-
-while IFS= read -r line; do
-    case "$line" in
-        AUTHOR\|*)
-            CURRENT_AUTHOR="${line#AUTHOR|}"
-            ;;
-        *file*changed*)
-            INS=$(echo "$line" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
-            DEL=$(echo "$line" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
-            AUTHOR_INSERTIONS["$CURRENT_AUTHOR"]=$(( ${AUTHOR_INSERTIONS["$CURRENT_AUTHOR"]:-0} + INS ))
-            AUTHOR_DELETIONS["$CURRENT_AUTHOR"]=$(( ${AUTHOR_DELETIONS["$CURRENT_AUTHOR"]:-0} + DEL ))
-            ;;
-    esac
-done <<< "$SHORTSTAT_RAW"
+# Rework rate (avoid div-by-zero)
+REWORK_DENOM=$TOTAL_COMMITS
+[ "$REWORK_DENOM" -eq 0 ] && REWORK_DENOM=1
+REWORK_RATE=$(awk "BEGIN { printf \"%.4f\", ($REVERT_COUNT + $HOTFIX_COUNT + $FIXUP_COUNT) / $REWORK_DENOM }")
 
 # -----------------------------------------------------------------------------
-# 5. Cadence — distinct active days in window
-# -----------------------------------------------------------------------------
-
-ACTIVE_DAYS=$(git -C "$REPO" log \
-    --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
-    --no-merges --format='%ad' --date=short 2>/dev/null \
-    | sort -u | wc -l | tr -d ' ')
-
-# Window length in days for rate computations
-WINDOW_DAYS=$(( ($(date -u -j -f "%Y-%m-%d" "$WINDOW_END" "+%s" 2>/dev/null \
-    || date -d "$WINDOW_END" "+%s") \
-    - $(date -u -j -f "%Y-%m-%d" "$WINDOW_START" "+%s" 2>/dev/null \
-    || date -d "$WINDOW_START" "+%s")) / 86400 ))
-[ "$WINDOW_DAYS" -lt 1 ] && WINDOW_DAYS=1
-
-# -----------------------------------------------------------------------------
-# 6. Large-commit proxy (>= 20 files changed) — proxy for `git add -A` use
+# 5. Large-commit proxy (>= 20 files changed) — proxy for `git add -A` use
 # -----------------------------------------------------------------------------
 
 LARGE_COMMITS=$(git -C "$REPO" log \
     --since="$WINDOW_START" --until="$WINDOW_END 23:59:59" \
     --no-merges --shortstat --format='COMMIT|%H' 2>/dev/null \
-    | awk '/^COMMIT/ {sha=$0; next}
-           /files? changed/ {
-             match($0, /[0-9]+ files? changed/);
-             n = substr($0, RSTART, RLENGTH);
-             gsub(/[^0-9]/, "", n);
-             if (n+0 >= 20) print sha;
-           }' \
-    | wc -l | tr -d ' ')
+    | awk '
+        /^COMMIT/ { next }
+        /files? changed/ {
+            if (match($0, /[0-9]+ files? changed/)) {
+                n = substr($0, RSTART, RLENGTH);
+                gsub(/[^0-9]/, "", n);
+                if (n + 0 >= 20) c++;
+            }
+        }
+        END { print c + 0 }
+    ')
 
 # -----------------------------------------------------------------------------
-# 7. Emit JSON
+# 6. JSON emission
 # -----------------------------------------------------------------------------
+
+# JSON-escape via sed: backslashes, quotes, tabs, control chars stripped.
+json_escape() {
+    printf '%s' "$1" \
+        | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g' \
+        | tr -d '\n\r'
+}
+
+# Emit a JSON object body from a temp-file where each line is "key|value".
+# Numeric values are emitted unquoted; quoting is the caller's responsibility
+# for non-numeric.
+emit_kv_object_from_file() {
+    local file="$1" kind="$2"  # kind: persona | author | lines
+    local first=1
+    while IFS='|' read -r f1 f2 f3; do
+        [ -z "$f1" ] && continue
+        if [ "$kind" = "lines" ]; then
+            # f1=author, f2=ins, f3=del
+            [ "$first" -eq 1 ] && first=0 || printf ",\n"
+            printf '    "%s": { "insertions": %d, "deletions": %d }' \
+                "$(json_escape "$f1")" "$f2" "$f3"
+        else
+            # persona/author: f1=kind, f2=name, f3=count   (caller filters first column)
+            if [ "$f1" = "$kind" ]; then
+                [ "$first" -eq 1 ] && first=0 || printf ",\n"
+                printf '    "%s": %d' "$(json_escape "$f2")" "$f3"
+            fi
+        fi
+    done < "$file"
+    printf "\n"
+}
 
 echo "{"
-echo "  \"script\": \"collect_git_metrics.sh\","
-echo "  \"version\": \"1.0\","
-echo "  \"repo\": \"$(jq_escape "$REPO")\","
-echo "  \"window\": {"
-echo "    \"start\": \"$WINDOW_START\","
-echo "    \"end\": \"$WINDOW_END\","
-echo "    \"days\": $WINDOW_DAYS"
-echo "  },"
-echo "  \"totals\": {"
-echo "    \"commits\": $TOTAL_COMMITS,"
-echo "    \"merges\": $TOTAL_MERGES,"
-echo "    \"active_days\": $ACTIVE_DAYS,"
-echo "    \"large_commits_proxy\": $LARGE_COMMITS"
-echo "  },"
-echo "  \"rework\": {"
-echo "    \"reverts\": $REVERT_COUNT,"
-echo "    \"hotfixes\": $HOTFIX_COUNT,"
-echo "    \"fixups\": $FIXUP_COUNT,"
-echo "    \"fix_prefix\": $FIX_PREFIX_COUNT,"
-echo "    \"rework_rate\": $(awk "BEGIN { printf \"%.4f\", ($REVERT_COUNT + $HOTFIX_COUNT + $FIXUP_COUNT) / ($TOTAL_COMMITS > 0 ? $TOTAL_COMMITS : 1) }")"
-echo "  },"
-echo "  \"commits_by_persona_prefix\": {"
-FIRST=1
-for key in "${!PERSONA_COMMITS[@]}"; do
-    [ "$FIRST" -eq 1 ] && FIRST=0 || echo ","
-    printf "    \"%s\": %d" "$(jq_escape "$key")" "${PERSONA_COMMITS[$key]}"
-done
-echo ""
-echo "  },"
-echo "  \"commits_by_author\": {"
-FIRST=1
-for key in "${!AUTHOR_COMMITS[@]}"; do
-    [ "$FIRST" -eq 1 ] && FIRST=0 || echo ","
-    printf "    \"%s\": %d" "$(jq_escape "$key")" "${AUTHOR_COMMITS[$key]}"
-done
-echo ""
-echo "  },"
-echo "  \"lines_by_author\": {"
-FIRST=1
-for key in "${!AUTHOR_INSERTIONS[@]}"; do
-    [ "$FIRST" -eq 1 ] && FIRST=0 || echo ","
-    printf "    \"%s\": { \"insertions\": %d, \"deletions\": %d }" \
-        "$(jq_escape "$key")" \
-        "${AUTHOR_INSERTIONS[$key]}" \
-        "${AUTHOR_DELETIONS[$key]:-0}"
-done
-echo ""
-echo "  },"
-echo "  \"notes\": ["
-echo "    \"Persona-prefix attribution honors first colon-separated token of commit subject (case-insensitive, no spaces).\","
-echo "    \"Commits without a recognized persona prefix attributed by author name.\","
-echo "    \"Reverts/hotfixes/fixups counted by grep over commit messages; refine for false positives in the auditor.\","
-echo "    \"Large-commit proxy (>=20 files) is a weak signal for 'git add -A' use; treat as inferred.\""
-echo "  ]"
+printf '  "script": "collect_git_metrics.sh",\n'
+printf '  "version": "1.0",\n'
+printf '  "repo": "%s",\n' "$(json_escape "$REPO")"
+printf '  "window": {\n'
+printf '    "start": "%s",\n' "$WINDOW_START"
+printf '    "end": "%s",\n' "$WINDOW_END"
+printf '    "days": %d\n' "$WINDOW_DAYS"
+printf '  },\n'
+printf '  "totals": {\n'
+printf '    "commits": %d,\n' "$TOTAL_COMMITS"
+printf '    "merges": %d,\n' "$TOTAL_MERGES"
+printf '    "active_days": %d,\n' "$ACTIVE_DAYS"
+printf '    "large_commits_proxy": %d\n' "$LARGE_COMMITS"
+printf '  },\n'
+printf '  "rework": {\n'
+printf '    "reverts": %d,\n' "$REVERT_COUNT"
+printf '    "hotfixes": %d,\n' "$HOTFIX_COUNT"
+printf '    "fixups": %d,\n' "$FIXUP_COUNT"
+printf '    "fix_prefix": %d,\n' "$FIX_PREFIX_COUNT"
+printf '    "rework_rate": %s\n' "$REWORK_RATE"
+printf '  },\n'
+
+printf '  "commits_by_persona_prefix": {\n'
+emit_kv_object_from_file "$ACTOR_TMP" "persona"
+printf '  },\n'
+
+printf '  "commits_by_author": {\n'
+emit_kv_object_from_file "$ACTOR_TMP" "author"
+printf '  },\n'
+
+printf '  "lines_by_author": {\n'
+emit_kv_object_from_file "$LINES_TMP" "lines"
+printf '  },\n'
+
+printf '  "notes": [\n'
+printf '    "Persona-prefix attribution honors first colon-separated token of commit subject (case-insensitive, no spaces, [a-z0-9_-] only).",\n'
+printf '    "Commits without a recognized persona prefix attributed by author name.",\n'
+printf '    "Reverts/hotfixes/fixups counted by grep over commit messages; refine for false positives in the auditor.",\n'
+printf '    "Large-commit proxy (>=20 files) is a weak signal for git add -A use; treat as inferred.",\n'
+printf '    "Portable: bash 3.2+ (no associative arrays; aggregation done in awk)."\n'
+printf '  ]\n'
 echo "}"
