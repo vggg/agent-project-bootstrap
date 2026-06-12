@@ -15,6 +15,7 @@
     --amber: #f59e0b;
     --rose: #f43f5e;
     --sky: #38bdf8;
+    --purple: #a855f7;
   }
   * { box-sizing: border-box; }
   body {
@@ -103,11 +104,24 @@
   }
   .callout.bad { border-color: var(--rose); background: rgba(244, 63, 94, 0.08); }
   .callout.good { border-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+  .callout.info { border-color: var(--sky); background: rgba(56, 189, 248, 0.08); }
   footer {
     padding: 1.5rem 2.5rem; border-top: 1px solid var(--border);
     color: var(--muted); font-size: 0.8rem;
   }
   a { color: var(--sky); }
+
+  /* Timeline */
+  .timeline-card { padding: 1rem 1.25rem; }
+  .timeline-svg-wrap { overflow-x: auto; padding: 0.5rem 0; }
+  .timeline-legend {
+    display: flex; flex-wrap: wrap; gap: 1rem;
+    color: var(--muted); font-size: 0.75rem; margin-top: 0.5rem;
+  }
+  .timeline-legend .swatch {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    vertical-align: middle; margin-right: 0.3rem;
+  }
 </style>
 </head>
 <body>
@@ -143,14 +157,25 @@
     </div>
   </section>
 
-  {{#FALSE_WIN_CALLOUT}}
-  <div class="callout bad">
-    <strong>False-win callout.</strong>
-    Autonomy split is high ({{AUTONOMY_SPLIT}}) but intervention tax is also high ({{INTERVENTION_TAX}}) —
-    the multi-agent setup is doing more work than a single-agent or pure-human flow would have.
-    Consider whether the overhead is earning its keep.
+  <!-- INSERT:FALSE_WIN_CALLOUT -->
+
+  <!-- INSERT:INDEPENDENCE_CALLOUT -->
+
+  <h2>Timeline</h2>
+  <div class="card timeline-card">
+    <div class="timeline-svg-wrap">
+      <!-- INSERT:TIMELINE_SVG -->
+    </div>
+    <div class="timeline-legend">
+      <span><span class="swatch" style="background:#10b981"></span>release / feature</span>
+      <span><span class="swatch" style="background:#38bdf8"></span>adr / decision</span>
+      <span><span class="swatch" style="background:#f59e0b"></span>roster</span>
+      <span><span class="swatch" style="background:#a8a29e"></span>convention</span>
+      <span><span class="swatch" style="background:#f43f5e"></span>incident</span>
+      <span><span class="swatch" style="background:#a855f7"></span>audit</span>
+    </div>
+    <div class="sub" style="margin-top: 0.5rem;">Markers sized by importance. Hover for detail; labels shown for importance ≥7.</div>
   </div>
-  {{/FALSE_WIN_CALLOUT}}
 
   <h2>Designed model</h2>
   <div class="card">
@@ -176,15 +201,7 @@
         </tr>
       </thead>
       <tbody>
-        <!-- {{#DRIFT_ROWS}}
-        <tr>
-          <td>{{DIMENSION}}</td>
-          <td>{{INTENDED}}</td>
-          <td>{{ACTUAL}}</td>
-          <td class="gap-{{GAP_CLASS}}">{{GAP}}</td>
-          <td><span class="conf-{{CONFIDENCE_CLASS}}">{{CONFIDENCE}}</span></td>
-        </tr>
-        {{/DRIFT_ROWS}} -->
+        <!-- INSERT:DRIFT_ROWS -->
       </tbody>
     </table>
   </div>
@@ -217,6 +234,8 @@
     <canvas id="persona-bars" height="240"></canvas>
   </div>
 
+  <!-- INSERT:PER_PERSONA_SCORECARDS -->
+
   <h2>Throughput trend</h2>
   <div class="card">
     <canvas id="throughput-trend" height="200"></canvas>
@@ -238,7 +257,7 @@
         </tr>
       </thead>
       <tbody>
-        <!-- {{#AGENTS}} ... {{/AGENTS}} -->
+        <!-- INSERT:AGENT_ROWS -->
       </tbody>
     </table>
   </div>
@@ -246,37 +265,13 @@
   <h2>Ranked opportunities</h2>
   <div class="card">
     <ol id="opportunities">
-      <!-- {{#OPPORTUNITIES}}
-      <li>
-        <strong>{{WHAT}}</strong> — {{WHY}}
-        <div style="color: var(--muted); font-size: 0.85rem;">How: {{HOW}} &middot; Score: {{SCORE}}/9</div>
-      </li>
-      {{/OPPORTUNITIES}} -->
+      <!-- INSERT:OPPORTUNITY_ROWS -->
     </ol>
   </div>
 
   <h2>Trend</h2>
   <div class="card" id="trend-card">
-    <!-- {{#TREND_AVAILABLE}}
-    <table>
-      <thead>
-        <tr><th>Metric</th><th>Previous</th><th>Current</th><th>Δ</th></tr>
-      </thead>
-      <tbody>
-        {{#TREND_ROWS}}
-        <tr>
-          <td>{{METRIC}}</td>
-          <td>{{PREVIOUS}}</td>
-          <td>{{CURRENT}}</td>
-          <td class="{{DELTA_DIR}}">{{DELTA}}</td>
-        </tr>
-        {{/TREND_ROWS}}
-      </tbody>
-    </table>
-    {{/TREND_AVAILABLE}} -->
-    <!-- {{^TREND_AVAILABLE}}
-    <div class="sub">Only one snapshot exists — trend data appears after the second audit.</div>
-    {{/TREND_AVAILABLE}} -->
+    <!-- INSERT:TREND_SECTION -->
   </div>
 
   <h2>Methodology</h2>
@@ -284,6 +279,7 @@
     <div><strong>Sources:</strong> {{SOURCES}}</div>
     <div><strong>Sampling:</strong> {{SAMPLING}}</div>
     <div><strong>Identity resolution:</strong> {{IDENTITY_RULES}}</div>
+    <div><strong>Auditor independence:</strong> <code>auditor_is_participant: {{AUDITOR_IS_PARTICIPANT}}</code>{{AUDITOR_PARTICIPATION_NOTE}}</div>
     <div><strong>Confidence summary:</strong>
       <span class="conf-measured">measured {{N_MEASURED}}</span> &middot;
       <span class="conf-inferred">inferred {{N_INFERRED}}</span> &middot;
@@ -291,135 +287,121 @@
     </div>
   </div>
 
+  <!-- INSERT:ADDENDA_SECTION -->
+
   <h2>Caveats and data gaps</h2>
   <div class="card">
     <ul>
-      <!-- {{#CAVEATS}} <li>{{CAVEAT}}</li> {{/CAVEATS}} -->
+      <!-- INSERT:CAVEAT_ROWS -->
     </ul>
   </div>
 
 </main>
 
 <footer>
-  Generated by the <strong>multi-agent-audit</strong> skill, part of
+  Generated by the <strong>multi-agent-audit</strong> skill v{{SKILL_VERSION}}, part of
   <a href="https://github.com/vggg/agent-project-bootstrap">vggg/agent-project-bootstrap</a>.
   Read-only audit — no modifications were made to the audited project.
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-  // The audit's renderer fills these placeholders with real numbers before
-  // the HTML is written to disk. This template ships with sample values so
-  // a previewing browser can see the layout.
-
-  const data = {
-    autonomy: {
-      autonomous: {{AUTONOMOUS_TASKS_RAW|default:29}},
-      hybrid: {{HYBRID_TASKS_RAW|default:46}},
-      human: {{HUMAN_TASKS_RAW|default:18}}
-    },
-    personas: {
-      labels: {{PERSONA_LABELS_JSON|default:'["Iris","Dave","Kris","Vera","Ivy","Vikram"]'}},
-      commits: {{PERSONA_COMMITS_JSON|default:'[47,38,22,19,11,28]'}},
-      reviews: {{PERSONA_REVIEWS_JSON|default:'[0,6,11,18,0,23]'}},
-      handoffs: {{PERSONA_HANDOFFS_JSON|default:'[12,8,5,14,6,31]'}}
-    },
-    throughput: {
-      weeks: {{WEEK_LABELS_JSON|default:'["W1","W2","W3","W4","W5","W6","W7","W8","W9","W10","W11","W12","W13"]'}},
-      commits: {{WEEKLY_COMMITS_JSON|default:'[12,18,8,22,15,28,19,9,31,17,14,22,20]'}},
-      prs: {{WEEKLY_PRS_JSON|default:'[3,5,2,7,4,8,5,2,9,4,3,6,5]'}}
-    },
-    radar: {
-      labels: ["Throughput","Autonomy","Coordination","Quality","Guardrail","Knowledge","Op. Fidelity"],
-      scores: {{AXIS_SCORES_JSON|default:'[4,3,3,4,2,4,4]'}}
-    }
-  };
+  // Single data injection from the renderer. All chart inputs live here.
+  const data = {{AUDIT_DATA_JSON}};
 
   // Autonomy donut
-  new Chart(document.getElementById('autonomy-donut'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Autonomous','Hybrid','Human'],
-      datasets: [{
-        data: [data.autonomy.autonomous, data.autonomy.hybrid, data.autonomy.human],
-        backgroundColor: ['#10b981','#f59e0b','#38bdf8'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      plugins: { legend: { position: 'bottom', labels: { color: '#f5f5f4', font: { size: 11 } } } },
-      cutout: '60%'
-    }
-  });
+  if (data.autonomy && document.getElementById('autonomy-donut')) {
+    new Chart(document.getElementById('autonomy-donut'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Autonomous','Hybrid','Human'],
+        datasets: [{
+          data: [data.autonomy.autonomous, data.autonomy.hybrid, data.autonomy.human],
+          backgroundColor: ['#10b981','#f59e0b','#38bdf8'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        plugins: { legend: { position: 'bottom', labels: { color: '#f5f5f4', font: { size: 11 } } } },
+        cutout: '60%'
+      }
+    });
+  }
 
   // Per-persona bars
-  new Chart(document.getElementById('persona-bars'), {
-    type: 'bar',
-    data: {
-      labels: data.personas.labels,
-      datasets: [
-        { label: 'Commits', data: data.personas.commits, backgroundColor: '#10b981' },
-        { label: 'Reviews', data: data.personas.reviews, backgroundColor: '#38bdf8' },
-        { label: 'Handoffs', data: data.personas.handoffs, backgroundColor: '#f59e0b' }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#f5f5f4' } } },
-      scales: {
-        x: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' } },
-        y: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' }, beginAtZero: true }
+  if (data.personas && document.getElementById('persona-bars')) {
+    new Chart(document.getElementById('persona-bars'), {
+      type: 'bar',
+      data: {
+        labels: data.personas.labels,
+        datasets: [
+          { label: 'Commits', data: data.personas.commits, backgroundColor: '#10b981' },
+          { label: 'Reviews', data: data.personas.reviews, backgroundColor: '#38bdf8' },
+          { label: 'Handoffs', data: data.personas.handoffs, backgroundColor: '#f59e0b' }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#f5f5f4' } } },
+        scales: {
+          x: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' } },
+          y: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' }, beginAtZero: true }
+        }
       }
-    }
-  });
+    });
+  }
 
   // Throughput trend
-  new Chart(document.getElementById('throughput-trend'), {
-    type: 'line',
-    data: {
-      labels: data.throughput.weeks,
-      datasets: [
-        { label: 'Commits', data: data.throughput.commits, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.3 },
-        { label: 'PRs',     data: data.throughput.prs,     borderColor: '#38bdf8', backgroundColor: 'transparent', tension: 0.3 }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#f5f5f4' } } },
-      scales: {
-        x: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' } },
-        y: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' }, beginAtZero: true }
+  if (data.throughput && document.getElementById('throughput-trend')) {
+    new Chart(document.getElementById('throughput-trend'), {
+      type: 'line',
+      data: {
+        labels: data.throughput.weeks,
+        datasets: [
+          { label: 'Commits', data: data.throughput.commits, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.3 },
+          { label: 'PRs',     data: data.throughput.prs,     borderColor: '#38bdf8', backgroundColor: 'transparent', tension: 0.3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#f5f5f4' } } },
+        scales: {
+          x: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' } },
+          y: { ticks: { color: '#a8a29e' }, grid: { color: '#292524' }, beginAtZero: true }
+        }
       }
-    }
-  });
+    });
+  }
 
   // Score radar
-  new Chart(document.getElementById('score-radar'), {
-    type: 'radar',
-    data: {
-      labels: data.radar.labels,
-      datasets: [{
-        label: 'Score (1-5)',
-        data: data.radar.scores,
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.2)',
-        pointBackgroundColor: '#10b981'
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        r: {
-          angleLines: { color: '#292524' },
-          grid: { color: '#292524' },
-          pointLabels: { color: '#f5f5f4', font: { size: 11 } },
-          ticks: { display: false, beginAtZero: true, max: 5, stepSize: 1 },
-          min: 0, max: 5
-        }
+  if (data.radar && document.getElementById('score-radar')) {
+    new Chart(document.getElementById('score-radar'), {
+      type: 'radar',
+      data: {
+        labels: data.radar.labels,
+        datasets: [{
+          label: 'Score (1-5)',
+          data: data.radar.scores,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.2)',
+          pointBackgroundColor: '#10b981'
+        }]
       },
-      plugins: { legend: { display: false } }
-    }
-  });
+      options: {
+        responsive: true,
+        scales: {
+          r: {
+            angleLines: { color: '#292524' },
+            grid: { color: '#292524' },
+            pointLabels: { color: '#f5f5f4', font: { size: 11 } },
+            ticks: { display: false, beginAtZero: true, max: 5, stepSize: 1 },
+            min: 0, max: 5
+          }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
 </script>
 
 </body>
