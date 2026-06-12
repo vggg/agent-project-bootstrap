@@ -68,9 +68,47 @@ Per-persona detail: `agents/<slug>/persona.yaml` — has `capabilities.allow:` /
 
 ### Observed actors
 
-Standard `git log` + `gh pr/issue/review` queries from `references/platform-integrations.md`. The bootstrap-specific signal:
+Standard `git log` + `gh pr/issue/review` queries from `references/platform-integrations.md`, **plus four other substrates that matter more for this layout than git log does** (per the v1.2.0 GardenTwin-audit lesson: see `audit/2026-06-12-addendum-01-agent-labels-correction.md` in any vggg-style vault for the worked example).
 
-**Commit prefix attribution.** Personas commit with a prefix matching their slug:
+> ⚠️ **For agent-project-bootstrap projects, persona attribution is MULTI-SUBSTRATE by design.** Git-log identity collision is the rule, not the exception — multiple personas drive their sessions through the same human's local git config and GitHub auth. Do NOT score the Agents drift row on `git log` alone. Use the substrates below.
+
+The five identity substrates to mine, in priority order:
+
+#### 1. GitHub `agent-*` claim labels (primary attribution)
+
+Each persona claims issues via `assignee + agent-<slug>` label. Per-window claim count is the canonical "who's doing dev/analyst/designer work" signal:
+
+```bash
+gh -R <owner>/<repo> issue list --state all --limit 1000 \
+  --search "label:agent-<slug> created:>=<window-start>" \
+  --json number,title,assignees,labels \
+  | jq 'length'
+```
+
+#### 2. Vault `_handoff/` from/for fields
+
+Per-persona handoff send/receive counts. Build the persona × persona handoff matrix:
+
+```bash
+for f in <collab>/_handoff/*.md; do
+  grep -E '^(from|for):' "$f" | tr -d ' '
+done | sort | uniq -c | sort -rn
+```
+
+#### 3. Per-session output frontmatter
+
+Dev-logs, EODs, session-logs, findings, proposals declare the authoring persona in YAML frontmatter:
+
+```bash
+grep -h '^agent:' <collab>/ClaudeDevAgent/dev-log/*.md \
+  <collab>/ClaudeAnalyst/findings/*.md \
+  <collab>/ClaudeDesigner/*-eod.md 2>/dev/null \
+  | sort | uniq -c | sort -rn
+```
+
+#### 4. Commit-prefix attribution (when used)
+
+Personas MAY commit with a prefix matching their slug (`iris: ingest | ...`). When this convention is used, the prefix is authoritative over git author identity:
 
 ```bash
 git -C <code-repo> log --since="<W>" --format='%H|%s|%an|%ae' \
@@ -79,7 +117,26 @@ git -C <code-repo> log --since="<W>" --format='%H|%s|%an|%ae' \
     }'
 ```
 
-This resolves the identity-collision case where the same human-account commits as different personas — the prefix is authoritative over the email.
+> **Important:** many agent-project-bootstrap-shipped projects use **Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `ci:`, `style:`, `perf:`, `build:`, `revert:`) instead of persona prefixes. The `collect_git_metrics.sh` script's `--filter-conv-commits` mode handles this — see v1.3.0 docs. **If you see `feat`, `fix`, etc. as the top "personas" in the script output, persona-prefix isn't the attribution mechanism for this repo. Fall through to substrates 1–3 above.**
+
+#### 5. Git author identity (last-resort fallback)
+
+If none of substrates 1–4 are populated, fall back to `git log %an %ae`. This will under-attribute multi-agent projects driven by a single human (the GardenTwin pattern); flag it as `confidence: inferred` in the report.
+
+### Composite identity score
+
+For each declared persona, compute a per-substrate-presence vector:
+
+```
+persona       | label-claims | handoffs-sent | handoffs-received | frontmatter-output | prefix-commits | git-commits
+Dave          | 87           | 0             | 5                 | N (dev-logs)        | 0              | 0 (collapsed)
+Kris          | 36           | 5             | 7                 | M (dev-logs)        | 0              | 0 (collapsed)
+Vera          | 0 (files)    | 4             | 4                 | K (session-logs)    | 0              | 0 (collapsed)
+Ivy           | 0            | 2             | 2                 | J (EODs)            | 0              | 70 (designer ID)
+Iris          | n/a          | 11            | 12                | n/a (wiki direct)   | many           | many (vault-side)
+```
+
+A persona is **operationally present** if `sum of substrate-counts ≥ N_min` (default `N_min = 3`). Surface the per-substrate vector in the report's Agent Inventory section, not just totals.
 
 ## Coordination substrate
 

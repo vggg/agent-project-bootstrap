@@ -6,6 +6,81 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-06-12
+
+The first-real-audit-feedback release. v1.2.0 shipped the `multi-agent-audit` skill and Iris ran it against GardenTwin within hours; the audit's own write-up identified 13 substantive failures + a missing timeline feature. v1.3 closes all 13 and adds the timeline. Self-validating loop completed in <24h.
+
+### Added — `multi-agent-audit` skill v1.3 (closes all 13 v1.2.0 findings + timeline feature)
+
+#### Multi-substrate Agents lens (Finding #1)
+
+The biggest v1.2 framing flaw was overweighting the `git log` lens for the Agents drift dimension. v1.3 codifies the multi-substrate rule in `references/drift-analysis.md` and `references/bootstrap-adapter.md`:
+
+- **Agents identity** is mined from **five substrates** (GitHub `agent-*` labels, vault `_handoff/` `from:`/`for:` fields, dev-log/EOD/session-log frontmatter, optional persona-prefix commits, and `git log` as a last-resort fallback). Git-log identity collision is the *rule* for single-human multi-agent projects, NOT pathological drift.
+- `bootstrap-adapter.md` now ships a per-substrate presence vector + operationally-present threshold.
+
+#### Conv-commits filter (Finding #8)
+
+`scripts/collect_git_metrics.sh` now defaults `CONV_COMMITS_FILTER=1` — Conventional Commits keywords (`feat`/`fix`/`docs`/`chore`/`refactor`/`test`/`ci`/`style`/`perf`/`build`/`revert`) bucket into a new `commits_by_conv_commit_type` field rather than polluting `commits_by_persona_prefix`. New `PERSONA_PREFIXES` env supports an explicit allowlist; everything else goes to `commits_by_other_prefix`. Smoke-tested.
+
+#### Snapshot schema v1.0 → v1.1 — `addenda:` + `auditor_independence:` (Findings #3, #6)
+
+`references/confidence-and-trends.md` defines schema v1.1 (additive — old snapshots still readable):
+
+- **`addenda:` array** on the snapshot is the ONE allowed edit to a shipped point-in-time record. `addenda[*].revised_values` overrides any body field via dot-path; `trend_reader.py` applies them automatically before computing deltas.
+- **`audit_run.auditor_independence`** flag captures whether the auditor is itself a participant in the audited project. Renderer surfaces this as a callout banner. Required starting v1.3; surfaces conflict-of-interest in §11 Methodology.
+
+#### Weighted operational-fidelity formula (Finding #12)
+
+`references/metric-taxonomy.md` adds the optional weighted formula. Default per-dimension weights: Guardrails 2.0, Reviewers 1.5, Agents/Autonomy/Routing/Backlog 1.0 each, Rituals 0.5. Equal-weight remains the default; weighted is opt-in.
+
+#### Timeline feature (new — user request)
+
+A new §9.5 Timeline section in the markdown report + horizontal SVG block in the HTML dashboard, surfacing the **important events** in the audit window (releases, ADR creations, roster changes, CONVENTIONS/COORDINATION changes, incidents, audit snapshots, large features).
+
+- **`references/timeline.md`** (new) — event taxonomy, detection rules per type, importance heuristic 1–10, output formats.
+- **`scripts/extract_timeline.py`** — detector for 8 event types from a code repo + optional coordination/vault path. Importance scoring with adjacency-aware label staggering. Emits markdown or JSON.
+- HTML SVG in `assets/report-template.html`: markers colored by type and sized by importance; week-tick axis; legend; labels for importance ≥7.
+
+#### Five Python helpers — stdlib-only (Findings #4 #5 #9 #10 #11)
+
+- **`scripts/trend_reader.py`** — walks `snapshots/`, applies `addenda[*].revised_values`, computes deltas on the canonical trend metrics, emits §10 Trend markdown OR JSON. Handles single-snapshot, schema mismatch, window-size mismatch gracefully.
+- **`scripts/compute_centrality.py`** — Brandes' betweenness centrality on the coordination network (handoffs + optional reviews/merges). SPOF flag at 2.5× mean ratio. **Smoke-test against the vault's handoff graph produced Iris ratio 4.7× — sharper than the v1.2.0 hand-waved 2.1× estimate**, demonstrating the script generates findings the human-driven audit missed.
+- **`scripts/parse_coverage.py`** — auto-detects Istanbul / LCOV / Cobertura formats; optional `--baseline` for delta computation; normalized output schema.
+- **`scripts/persona_attribution.py`** — joins `agent-*` claim labels → PRs closing those issues → files touched per persona. The v1.3 fix for the v1.2.0 identity-collision finding using the multi-substrate lens.
+- **`scripts/extract_timeline.py`** — see Timeline feature above.
+
+#### HTML dashboard renderer (Finding #2 — "HTML dashboard wasn't produced")
+
+- **`scripts/render_report.py`** (new, ~350 lines, stdlib) — fills the template's 18 simple `{{X}}` placeholders + 10 `<!-- INSERT:X -->` block markers; auto-detects template location relative to the script; injects a single JSON `data` object for the Chart.js script block (no inline mustache).
+- **`assets/report-template.html` rewritten** — mustache-style loops replaced with INSERT markers (renderer-fillable, no template engine dep). Adds: per-persona scorecards grid, timeline SVG section, auditor-independence callout, false-win callout, addenda card.
+
+#### Short-form executive-summary mode (Finding #13)
+
+- **`references/short-form-mode.md`** — spec + markdown/HTML templates.
+- **`scripts/render_short.py`** — stdlib renderer. Markdown: ~1 KB. HTML: ~4 KB (no Chart.js dependency). Applies addenda like the full renderer.
+
+#### Subagent isolation smoke test (Finding #10 — "subagent-isolation test didn't happen")
+
+- **`tests/subagent_isolation_smoke.md`** — runbook for verifying the `project-auditor` subagent's read-only contract. Static checks + manual runtime tests (Edit-injection refusal, destructive-shell refusal, audited-repo-unchanged verification). Honest about tool-enforced vs instruction-enforced layers.
+- **`tests/verify_readonly_contract.sh`** — automated static portion: 6 checks (subagent file exists, tools list correct, Edit absent, no destructive `gh api -X` in scripts, no destructive `git`/`gh` in `.sh` code or `.py` subprocess calls, SKILL.md retains read-only language). All 6 pass on the v1.3 skill.
+
+#### Coverage-parser documentation (Batch 2 companion)
+
+- **`references/coverage-parsers.md`** — documents `parse_coverage.py` usage, supported formats, project-type-specific discovery rules, baseline-vs-current workflow, recommended remediation when reports are absent.
+
+### Changed — meta-docs for v1.3
+
+- **`SKILL.md`** — inputs-to-confirm checklist gains independence flag, weighting choice, timeline-yes/no. File inventory updated for the v1.3 layout (scripts/, tests/).
+- **`STATUS.md`** — v1.3 marked shipped; v1.4+ candidates updated.
+- **`README.md`** — sister-skill section mentions v1.3 enhancements.
+- **`.claude-plugin/plugin.json`** — version 1.2.0 → 1.3.0; description mentions short-form mode + timeline feature.
+- **`skills/multi-agent-audit/.gitignore` (new)** — prevents accidental `__pycache__/` tracking.
+
+### Validation
+
+The v1.3 skill running on its own coordination substrate (vault handoffs) already produced findings sharper than the v1.2 human-driven audit. Re-audit of GardenTwin with v1.3 is the formal validation step; first opportunity for trend-mode-with-overrides to fire on a real project.
+
 ## [1.2.0] — 2026-06-12
 
 ### Added — `multi-agent-audit` skill + `project-auditor` subagent (sister skill to `agent-project-bootstrap`)

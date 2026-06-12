@@ -24,11 +24,11 @@ If `measured` drops below ~60% of total, the report's executive summary should s
 
 ## Snapshot JSON schema
 
-Every audit run persists a machine-readable snapshot to `<output>/snapshots/<YYYY-MM-DDTHHMMSS>.json` for trend analysis. Schema (v1):
+Every audit run persists a machine-readable snapshot to `<output>/snapshots/<YYYY-MM-DDTHHMMSS>.json` for trend analysis. Schema (v1.1 — adds `addenda:` field per v1.3 release):
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "audit_run": {
     "timestamp": "2026-06-12T14:30:00Z",
     "project_name": "GardenTwin",
@@ -41,8 +41,26 @@ Every audit run persists a machine-readable snapshot to `<output>/snapshots/<YYY
       "subagent": "project-auditor",
       "runtime": "claude-code"
     },
-    "methodology_notes": "Stratified-by-week PR sample of 100/412"
+    "methodology_notes": "Stratified-by-week PR sample of 100/412",
+    "auditor_independence": {
+      "auditor_is_participant": true,
+      "participant_personas": ["iris"],
+      "rationale": "Iris is the librarian persona declared in the audited project's roster; running as iris-direct invocation rather than the project-auditor subagent"
+    }
   },
+  "addenda": [
+    {
+      "id": "01",
+      "created": "2026-06-12T18:00:00Z",
+      "title": "Agents drift row underweighted multi-substrate persona attribution",
+      "path": "audit/2026-06-12-addendum-01-agent-labels-correction.md",
+      "affects": ["drift_scorecard.agents", "operational_fidelity"],
+      "revised_values": {
+        "drift_scorecard.agents.credit": 0.8,
+        "operational_fidelity.score": 0.50
+      }
+    }
+  ],
   "agent_inventory": [
     {
       "actor": "Iris",
@@ -200,12 +218,91 @@ Per `SKILL.md § Output location convention`:
 
 **Never** write the snapshot inside the audited repos themselves. The snapshot is auditor output, not project artifact.
 
+## Addenda
+
+Audit reports are point-in-time records and are NEVER edited after they ship. When the auditor (or the reviewing human) finds an error or improvement, they file an **addendum** as a sibling file in the `audit/` folder:
+
+```
+audit/
+├── GardenTwin-audit-2026-06-12.md                    # original report (frozen)
+├── 2026-06-12-addendum-01-agent-labels-correction.md # addendum (additive)
+└── snapshots/
+    └── 2026-06-12T143000Z.json                       # original snapshot (frozen)
+```
+
+The snapshot's `addenda:` field captures the structured override information so trend-mode readers don't compare against frozen-and-wrong values:
+
+```json
+"addenda": [
+  {
+    "id": "01",
+    "created": "<timestamp>",
+    "title": "<short description>",
+    "path": "<relative path to addendum markdown>",
+    "affects": ["<dot.path.to.field>", ...],
+    "revised_values": {
+      "<dot.path.to.field>": <new value>,
+      ...
+    }
+  }
+]
+```
+
+**Trend-mode rule:** when computing deltas, the reader applies `revised_values` from the LATEST addendum on each affected field, in addendum-creation order (later overrides earlier). Original values remain in the body of the snapshot for provenance.
+
+Adding an addendum:
+
+1. Author the markdown file at `audit/<YYYY-MM-DD>-addendum-<NN>-<slug>.md` with the standard correction frontmatter (`type: audit-addendum`, `correction_target:`, etc.).
+2. Edit the snapshot's `addenda:` array to add the entry. **This is the ONE allowed edit to a shipped snapshot — only the `addenda:` field; never alter prior body values.**
+3. Update the `audit/README.md` snapshot table to list the addendum.
+4. Note in the next audit's methodology that the prior audit has addenda; trend mode handles them automatically.
+
+## Auditor independence
+
+Snapshot schema v1.1 adds `audit_run.auditor_independence`, capturing whether the auditor is itself a participant in the audited project:
+
+```json
+"auditor_independence": {
+  "auditor_is_participant": true,
+  "participant_personas": ["iris"],
+  "rationale": "Iris is the librarian persona declared in the project's roster"
+}
+```
+
+Required field starting v1.3 of the skill. When `auditor_is_participant: true`, the report's Methodology section MUST surface the conflict-of-interest explicitly. A fully-independent audit sets `auditor_is_participant: false` and omits `participant_personas`.
+
+**Why this matters:** an auditor who participates in the audited project may unconsciously soften findings or skew toward "great-design / mostly-faithful." Flagging it lets downstream readers calibrate confidence accordingly. Future v1.4 may add a tool-enforced check: the `project-auditor` subagent could decline to audit a project where the invoker is in the declared roster, OR run with extra scrutiny on Agents / Coordination / Knowledge-capture dimensions.
+
 ## Forward compatibility
 
-The `schema_version` field allows the snapshot reader to handle older snapshots. v1.0 is the current spec. Breaking changes bump to v2.0; additive changes bump to v1.1, v1.2.
+The `schema_version` field allows the snapshot reader to handle older snapshots. Current spec: **v1.1**. Breaking changes bump to v2.0; additive changes bump to v1.2, v1.3.
 
 When reading a snapshot:
 
 1. Check `schema_version`.
 2. If unsupported, skip with a note: *"Snapshot at <path> has unsupported schema v<X>; not included in trend."*
 3. Otherwise, read all known fields; ignore unknown ones.
+4. **Apply `addenda[*].revised_values`** to the body values before computing trend deltas. Original body values remain for provenance; revised values are what trend math uses.
+
+## Trend-mode reader
+
+A reference Python implementation ships at `scripts/trend_reader.py`. It:
+
+- Walks `<output>/snapshots/*.json`
+- Sorts by `audit_run.timestamp`
+- For each pair (previous, current), applies addenda overrides
+- Computes deltas on the canonical trend metrics:
+  - `metrics.autonomy.intervention_tax`
+  - `metrics.quality_rework.rework_rate`
+  - `metrics.dora.merge_gate_wait_p50_hours` (or seconds, normalized)
+  - `metrics.pr_review.pct_prs_with_zero_reviews`
+  - `operational_fidelity.score`
+- Emits the markdown Trend section ready to paste into the next report.
+
+Invocation:
+
+```bash
+python3 scripts/trend_reader.py <snapshots-dir>
+```
+
+For per-run trend (when ≥2 snapshots exist in the same directory), the auditor invokes the trend reader after Step 4 report generation and pastes its output into the report's §10 Trend section.

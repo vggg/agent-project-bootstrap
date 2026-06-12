@@ -1,7 +1,7 @@
 {
   "name": "agent-project-bootstrap",
-  "description": "Scaffold a runtime-agnostic multi-agent project: one persona.yaml hydrates working personas on any AI coding agent (Claude Code, code-puppy, ...) via per-runtime adapters. Also includes the legacy Claude Code emit modes (vault-project, collab-repo-project, join-collab-project) and a sister skill — multi-agent-audit — for grading multi-agent projects against an evidence-based rubric (read-only).",
-  "version": "1.2.0",
+  "description": "Scaffold a runtime-agnostic multi-agent project: one persona.yaml hydrates working personas on any AI coding agent (Claude Code, code-puppy, ...) via per-runtime adapters. Also includes the legacy Claude Code emit modes (vault-project, collab-repo-project, join-collab-project) and a sister skill — multi-agent-audit — for grading multi-agent projects against an evidence-based rubric (read-only). v1.3 adds a timeline view of important events, snapshot-addenda overrides, a multi-substrate Agents lens, and stdlib Python helpers for trend, centrality, coverage, and per-persona PR attribution.",
+  "version": "1.3.0",
   "author": {
     "name": "vggg"
   }
