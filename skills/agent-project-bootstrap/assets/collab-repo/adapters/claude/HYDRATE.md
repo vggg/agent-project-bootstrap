@@ -50,13 +50,19 @@ only if ALL of these hold; otherwise render **Tier 2**:
 | Capability class | Tier 2 (`CLAUDE.md`) | Tier 3 (subagent) |
 |---|---|---|
 | **Whole-tool** (e.g. deny all writes / all shell) | instructed | **ENFORCED** via the `tools:` allow-list — omit the tool and the action is impossible |
-| **Sub-tool** (e.g. allow `open_pr`, deny `merge_pr` — both via `Bash`) | instructed | instructed (the parent tool is granted; denial is prose only) |
+| **Sub-tool** (e.g. allow `open_pr`, deny `merge_pr` — both via `Bash`) | instructed — **enforced when the `baron guard` hook is wired** (step 3c) | same: instructed, upgraded to enforced by the `baron guard` hook |
 
 Tier 3 closes the gap the v1.0 Claude adapter left open (ADR §10.5 / §10.8): whole-tool
 denials become real, matching the contract the code-puppy adapter delivers. Sub-tool denials
-remain instruction-only at BOTH tiers — **do not oversell them** (see
+are instruction-only by default at BOTH tiers — **do not oversell them** (see
 `canon/capability-vocab.v1.md` enforceability classes; `docs/LEARNINGS.md` L3: instruction-only
-guardrails still add real value, but say honestly what is enforced vs. instructed).
+guardrails still add real value, but say honestly what is enforced vs. instructed). The
+`baron guard` PreToolUse hook (step 3c, baron ADR-004) upgrades FIVE of the sub-tool denials
+(`push_main`, `force_push`, `merge_pr`, `write_path` scoping, `edit_other_personas`) from
+instructed to deterministically ENFORCED — but only when baron is installed on the machine
+running the session; without it the hook degrades to a non-blocking error and those denials
+are instructed again. `open_pr` / `run_tests` denials stay instruction-only (guard does not
+parse for them).
 
 ---
 
@@ -76,18 +82,25 @@ adapter's highest tier (Tier 3 — at Tier 2 everything is instructed).
 | `read_code` | whole-tool | read | `Read`, `Grep`, `Glob` | enforced |
 | `read_collab` | whole-tool | read | `Read`, `Grep`, `Glob` | enforced |
 | `write_code` | whole-tool | write | `Write`, `Edit` | enforced |
-| `write_path` | sub-tool | write | `Write`, `Edit` | instructed |
+| `write_path` | sub-tool | write | `Write`, `Edit` | enforced-with-baron (instructed otherwise) |
 | `open_pr` | sub-tool | shell | `Bash` | instructed |
 | `run_tests` | sub-tool | shell | `Bash` | instructed |
-| `merge_pr` | sub-tool | shell | `Bash` | instructed |
-| `push_main` | sub-tool | shell | `Bash` | instructed |
-| `force_push` | sub-tool | shell | `Bash` | instructed |
-| `edit_other_personas` | sub-tool | write | `Write`, `Edit` | instructed |
+| `merge_pr` | sub-tool | shell | `Bash` | enforced-with-baron (instructed otherwise) |
+| `push_main` | sub-tool | shell | `Bash` | enforced-with-baron (instructed otherwise) |
+| `force_push` | sub-tool | shell | `Bash` | enforced-with-baron (instructed otherwise) |
+| `edit_other_personas` | sub-tool | write | `Write`, `Edit` | enforced-with-baron (instructed otherwise) |
 
 > "Deny enforcement: enforced" is only real when NO allowed verb grants the same category —
 > whole-tool enforcement works by omitting the tool entirely. Denying `write_code` while
 > allowing `write_path` leaves `Write`/`Edit` granted, so that denial degrades to instructed
 > (rendered in the body). This is the honesty boundary; do not oversell it.
+>
+> "**enforced-with-baron (instructed otherwise)**" (the exact qualified form
+> `tests/bi_runtime_accept.py` accepts) means: the denial is deterministically enforced by
+> the `baron guard` PreToolUse hook when step 3c is wired AND baron is installed on the
+> session's machine; without baron the hook command fails as a NON-blocking error (per the
+> hooks contract, https://code.claude.com/docs/en/hooks) and the denial degrades to the
+> instructed layer. `open_pr`/`run_tests` denials are not guard-parsed and stay instructed.
 
 **Whole-tool denials:** if NO allowed verb needs a tool, it MUST be absent — the runtime
 hard-denies it. A read-only persona (e.g. a reviewer/librarian variant with no
@@ -176,7 +189,50 @@ Mirror the v0.3.x `__DEV__/AGENT.md` shape, with YAML frontmatter + these sectio
 - **What you may do:** from `capabilities.allow`.
 - **What never happens:** from `capabilities.deny` (+ standard: force-push, git add -A).
 
-All capabilities here are INSTRUCTED — no tool allow-list is applied at this tier.
+All capabilities here are INSTRUCTED — no tool allow-list is applied at this tier
+(step 3c upgrades the five guard-covered sub-tool denials when wired).
+
+### 3c. BOTH tiers — wire the `baron guard` PreToolUse hook
+
+Emit (or merge into) `<code_repo>/.claude/settings.json` a hooks block wiring Claude Code's
+PreToolUse event to `baron guard`, per the documented hooks contract
+(https://code.claude.com/docs/en/hooks — stdin carries `tool_name`/`tool_input`/`cwd`;
+exit 2 blocks the call with stderr fed to the model; exit 0 with no output defers to the
+normal permission flow):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "baron guard --persona-file \"${CLAUDE_PROJECT_DIR}/<relative path to agents/<slug>/persona.yaml>\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Resolve the persona-file path RELATIVE to the code repo (F7 — e.g.
+`${CLAUDE_PROJECT_DIR}/../<collab-dir>/agents/<slug>/persona.yaml`); never bake an absolute
+home path. If `.claude/settings.json` already exists, MERGE the hooks block — do not clobber
+other settings.
+
+**Honest note (say this to the user when hydrating):** this upgrades the five guard-covered
+sub-tool denials (`push_main`, `force_push`, `merge_pr`, `write_path` scopes,
+`edit_other_personas`) from *instructed* to **ENFORCED** — deterministically, before the tool
+runs — **when baron is installed** (`uv tool install <bootstrap-repo>/cli`). When baron is
+NOT installed, the hook command fails with a non-blocking error (the hooks contract runs the
+tool anyway on exit codes other than 0/2), so the session degrades exactly to the instructed
+behavior above — worse-is-visible, never worse-is-broken. Overrides
+(`BARON_GUARD_OVERRIDE=<reason>`) are allowed-but-logged to the tracked
+`.baron/guard-override.log`; each one is expected to become a `_handoff/`.
 
 ### 4. Render the session ritual (v1 tokens, relative paths)
 Used by both tiers (in the subagent body at Tier 3, in `CLAUDE.md` at Tier 2).
@@ -207,6 +263,9 @@ readability.
 - Identity (git author/email/prefix/label) matches `persona.yaml`.
 - Every `deny` verb appears under "What never happens."
 - `.claude/commands/vc.md` exists.
+- `.claude/settings.json` carries the PreToolUse → `baron guard` hook (step 3c) with the
+  persona-file path resolving; state honestly whether baron is installed (enforced) or not
+  (instructed until it is).
 
 **Tier 3:**
 - `.claude/agents/<slug>.md` exists with frontmatter (`name`, `description`, `tools`) + body.

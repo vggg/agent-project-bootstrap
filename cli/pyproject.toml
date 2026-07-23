@@ -10,7 +10,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "baron-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "Disciplined reader/writer over agent-project-bootstrap collab repos — the markdown/git substrate is the database."
 readme = "README.md"
 requires-python = ">=3.10"

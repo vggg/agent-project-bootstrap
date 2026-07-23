@@ -14,8 +14,8 @@ over the same human-legible collab-repo files the personas use
 file it writes remains fully human/agent-legible.
 
 Dependencies: **typer + pyyaml only**. `git` is driven via subprocess. `gh` is an
-accepted prerequisite for forge features only — everything below (M1–M3) works
-without `gh` installed.
+accepted prerequisite for forge features only (`baron lock`) — everything else
+below works without `gh` installed.
 
 ## Install
 
@@ -115,12 +115,116 @@ finding/decision numbering: duplicates are errors (exit 1); gaps and
 out-of-order headings are **report-only** warnings — baron never renumbers
 history.
 
+### `baron guard --persona-file <persona.yaml>` (M4)
+
+Deterministic capability enforcement as a **Claude Code PreToolUse hook**
+(ADR-004). Implements the documented hooks contract
+(https://code.claude.com/docs/en/hooks — the canonical target of the old
+docs.anthropic.com hooks URL): reads the hook JSON from stdin (`tool_name`,
+`tool_input`, `cwd`), maps the call to the frozen v1 capability verbs, and
+either stays silent (exit 0 — the normal permission flow applies) or blocks
+(exit 2 with the reason on stderr, which the contract feeds to the model).
+`--persona-file` may also come from env `BARON_PERSONA_FILE`.
+
+What it decides:
+
+- **Bash** — `git push` targeting the default branch → `push_main`;
+  `--force`/`-f`/`--force-with-lease`/`+refspec` → `force_push`;
+  `gh pr merge` → `merge_pr`; `git merge` while ON the default branch →
+  `push_main`. Parsing is **conservative**: an undeterminable push target
+  (e.g. bare `git push` outside a repo) is treated as the enforcement-relevant
+  verb and denied for personas lacking it, with stderr naming the inference;
+  personas holding the verb always pass. Non-git/gh commands pass — guard
+  governs capability verbs, not general shell.
+- **Edit / Write / NotebookEdit** — `_handoff/` is universally writable;
+  `agents/<other-slug>/` needs `edit_other_personas` (a persona's own
+  `agents/<slug>/` dir is its own surface); denied `write_path` scopes always
+  block; otherwise `write_code` grants the write, and without it only the
+  persona's declared `write_path` scopes remain.
+- **Unknown tools** — pass (a capability gate, not an allowlist).
+
+**Fail-closed but not brick:** unreadable persona file / malformed stdin →
+DENY with actionable stderr. Escape hatch: `BARON_GUARD_OVERRIDE=<reason>`
+allows the call BUT appends timestamp/tool/target/reason to
+`.baron/guard-override.log` — a **tracked** file (deliberately not gitignored:
+overrides are visible in diffs); each override is expected to become a
+`_handoff/`. Wire-up (`.claude/settings.json`, matcher
+`Bash|Edit|Write|NotebookEdit`): the Claude adapter's HYDRATE.md step 3c emits
+it. Without baron installed the hook fails non-blocking and denials degrade to
+instructed — honest degradation, never a bricked session.
+
+### `baron lock claim|release|list` (M5)
+
+PR-as-lock (ADR-002 §3), replacing the race-prone markdown LOCK-commit
+protocol — **the open PR is the lock**, the forge's PR list is the only state.
+
+```bash
+baron lock claim contracts/models.py --reason "tightening the stage protocol"
+baron lock list
+baron lock release contracts/models.py
+```
+
+`claim` creates branch `lock/<slug>` with one empty commit (via
+`git commit-tree` — the local checkout is never touched; the empty commit is
+load-bearing, GitHub refuses a PR whose head equals its base), opens a draft
+PR titled `lock: <path>` labeled `lock:<path>` with the reason in the body,
+and **refuses if an open lock PR for the path exists** (showing the holder).
+`release` closes the lock PR and deletes the branch. `list` prints
+path/holder/age/PR#. Requires `gh` (raises a clean `ForgeUnavailable`
+otherwise); all forge calls go through the Forge Protocol, so tests run
+against a fake. The CI side is the emitted
+`.github/workflows/lock-guard.yml` template (bash + `gh`), which fails any
+*other* PR touching a locked path.
+
+### `baron worktree add|list|remove` (M6 tooling)
+
+The branch-per-persona worktree topology (ADR-003 §2.7): one shared object
+store, worktrees under the manifest's `workspace.worktrees_root`.
+
+```bash
+baron worktree add fern --collab .        # <worktrees_root>/fern on branch persona/fern
+baron worktree add fern --repo ../code --root ../worktrees   # explicit paths
+baron worktree list
+baron worktree remove fern [--force]
+```
+
+`add` creates `<root>/<persona>` on branch `persona/<persona>` (created from
+the default branch if missing; an existing branch is reused). Defaults resolve
+from the manifest (`workspace.worktrees_root`, `repos[role=code]`); `--root` /
+`--repo` override. `list` shows each worktree's branch with ahead/behind vs
+the default branch. `remove` refuses while the worktree is dirty or its branch
+holds unmerged commits unless `--force` — and NEVER deletes the
+`persona/<persona>` branch (removing a working copy must not destroy history).
+`baron status` sweeps worktrees like clones (each reports its checked-out
+HEAD's divergence; the repo-wide branch sweep runs once, on the shared repo).
+Converting an existing clone-per-persona workspace:
+`../docs/worktree-migration.md`.
+
+### `baron waiver add|list` + `.baron-waivers.yaml`
+
+Deliberately-parked `baron status` reds, with mandatory expiry.
+
+```bash
+baron waiver add "clone:rex *" --reason "kept for the vNext experiment" \
+  --handoff _handoff/2026-07-23-parked-branch.md --expires 2026-08-15
+baron waiver list
+```
+
+`.baron-waivers.yaml` (collab root, human-legible, baron-managed via `waiver
+add`) holds `{subject, reason, handoff, expires}` entries; `subject` is an
+fnmatch pattern on the status SUBJECT column. A matching, unexpired waiver
+downgrades a red to warn with `(waived: <reason>)` appended — parked work
+stays visible, just not alarm-red. **Expiry keeps waivers honest:** an expired
+waiver stops matching (the red resurfaces) and is itself reported as an
+`expired-waiver` warn; malformed entries are reported, never silently dropped.
+
 ## Forges
 
 `src/baron/forge/` holds a small `Protocol` (`base.py`) with one built-in
-implementation, GitHub via `gh` subprocess (`github.py`). Other forges are
-plugins discovered through the `baron.forges` entry-point group; GitLab is
-backlog — design sketch in `../docs/BACKLOG.md`.
+implementation, GitHub via `gh` subprocess (`github.py`) — first consumed by
+`baron lock` (M5: `create_branch`, label-aware `open_pr`/`list_open_prs`,
+`close_pr`). Other forges are plugins discovered through the `baron.forges`
+entry-point group; GitLab is backlog — design sketch in `../docs/BACKLOG.md`.
 
 ## Development
 
@@ -129,5 +233,7 @@ uv run --project cli pytest cli/tests    # from the repo root
 ```
 
 The suite includes the capability-vocabulary drift guard, a synthetic divergent
-git topology reproducing the 2026-07-22 triple-stranding incident classes, and
-the ledger push-rejection race test.
+git topology reproducing the 2026-07-22 triple-stranding incident classes, the
+ledger push-rejection race test, subprocess-driven guard hook tests (synthetic
+PreToolUse JSON on stdin), a recorded fake forge for the lock lifecycle, a real
+two-persona worktree fixture, and the waiver downgrade/expiry cases.

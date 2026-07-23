@@ -6,9 +6,35 @@ lives in [`docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md`](docs/adr
 
 ## In progress — Phase 2: conventions → mechanisms (baron CLI)
 
-Per [ADR-003](docs/adr/ADR-003-baron-cli.md): the coordination conventions ADR-002 promoted
-are being mechanized as the `baron` CLI (`cli/`, typer+pyyaml only, markdown/git substrate
-stays the only database). Unreleased — see `CHANGELOG.md` [Unreleased].
+Per [ADR-003](docs/adr/ADR-003-baron-cli.md) / [ADR-004](docs/adr/ADR-004-baron-guard-enforcement.md):
+the coordination conventions ADR-002 promoted are being mechanized as the `baron` CLI
+(`cli/`, typer+pyyaml only, markdown/git substrate stays the only database). M1–M6-tooling
++ waivers shipped in **v1.5.0**; remaining:
+
+- [ ] **Live worktree migration of the pilot workspace** (the runbook shipped:
+  `docs/worktree-migration.md`; executing it on the real clone-per-persona workspace is
+  a separate, human-scheduled step — see `docs/BACKLOG.md`).
+- [ ] **Phase-gate audit** — re-run `multi-agent-audit` against the pilot with guard/lock
+  live, to measure whether operational fidelity moves off 0.53 now that the rules are
+  mechanisms.
+- [ ] **Merger precondition verification** + guard coverage growth — `docs/BACKLOG.md`.
+
+## Shipped
+
+| Version | Date | Summary (details in `CHANGELOG.md`) |
+|---|---|---|
+| **v1.5.0** | 2026-07-23 | baron CLI: M1–M3 (validate/status/ledgers-handoffs-index, first released here) + M4 `baron guard` PreToolUse enforcement (ADR-004) + M5 `baron lock` PR-as-lock + lock-guard CI template + M6 worktree tooling + status waivers. See below. |
+| v1.4.0 | 2026-07-22 | One front door + legacy quarantine + July-2026 ways-of-working (ADR-002) + archetype parity + real CI. |
+| v1.3.0 | 2026-06-12 | `multi-agent-audit` v1.3 — closed all 13 first-real-audit findings + timeline feature. |
+| v1.2.0 | 2026-06-12 | `multi-agent-audit` sister skill + `project-auditor` subagent. |
+| v1.1.x | 2026-06-04/08 | Claude Tier-3 subagent rendering; docs reconciled to the runtime-agnostic architecture. |
+| v1.0.x | 2026-06-03 | The runtime-agnostic milestone (ADR-001 §10 executed; all close-out items done). |
+
+## v1.5.0 — shipped 2026-07-23
+
+The mechanisms release (baron, ADR-003/ADR-004). The M1–M3 block had been pushed
+unreleased on 2026-07-22; v1.5.0 is its first released version (noted honestly in
+`CHANGELOG.md`).
 
 - [x] **M1 `baron validate`** — schema validation for persona.yaml/manifest.yaml; frozen
   10-verb vocabulary embedded + drift-guarded against `capability-vocab.v1.md`.
@@ -16,18 +42,16 @@ stays the only database). Unreleased — see `CHANGELOG.md` [Unreleased].
   handoff SLA, ledger/wiki staleness); `workspace.*` manifest fields (schema v1.2).
 - [x] **M3 ledgers/handoffs/index** — push-retry F/D allocation, handoff lifecycle with
   archive-not-delete, marker-delimited `_handoff/README.md` index.
-- [ ] **M4+ forge-consuming commands** (lock guard, merger preconditions) — `docs/BACKLOG.md`.
-- [ ] **M6 worktree/branch-per-persona topology** — `docs/BACKLOG.md`.
-
-## Shipped
-
-| Version | Date | Summary (details in `CHANGELOG.md`) |
-|---|---|---|
-| **v1.4.0** | 2026-07-22 | One front door + legacy quarantine + July-2026 ways-of-working (ADR-002) + archetype parity + real CI. See below. |
-| v1.3.0 | 2026-06-12 | `multi-agent-audit` v1.3 — closed all 13 first-real-audit findings + timeline feature. |
-| v1.2.0 | 2026-06-12 | `multi-agent-audit` sister skill + `project-auditor` subagent. |
-| v1.1.x | 2026-06-04/08 | Claude Tier-3 subagent rendering; docs reconciled to the runtime-agnostic architecture. |
-| v1.0.x | 2026-06-03 | The runtime-agnostic milestone (ADR-001 §10 executed; all close-out items done). |
+- [x] **M4 `baron guard`** (ADR-004) — deterministic capability enforcement as a Claude Code
+  PreToolUse hook; five sub-tool denials upgrade to `enforced-with-baron (instructed
+  otherwise)` in the Claude adapter; fail-closed with the tracked-override escape hatch.
+- [x] **M5 `baron lock`** — PR-as-lock (claim/release/list) over the extended Forge
+  Protocol + the dependency-free `lock-guard.yml` CI template; COORDINATION.md template
+  names the concrete commands.
+- [x] **M6 tooling `baron worktree`** — add/list/remove + status sweep +
+  `docs/worktree-migration.md` (live migration deliberately not included).
+- [x] **Status waivers** — `.baron-waivers.yaml` + `baron waiver add|list`; red→warn with
+  reason, expiry-honest (expired waivers resurface the red and warn on their own).
 
 ## v1.4.0 — shipped 2026-07-22
 

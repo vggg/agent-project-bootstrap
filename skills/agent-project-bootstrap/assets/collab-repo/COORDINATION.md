@@ -65,11 +65,21 @@ Hot files for this project:
 | `wiki/log.md`, `wiki/*` | Owner | Librarian | Enforced by capability — `write_path: [wiki]` is denied to everyone else |
 | {{HOT_FILES_TABLE_ROWS}} | | | *(add tech-stack-specific hot files here — e.g. schema files, lockfiles)* |
 
-**Lock mechanics — the open PR is the lock (ADR-002 §3):**
-1. **Claim** by opening a PR (draft is fine) touching the path, and add the matching `lock:<area>` label so conflicting *design* work is caught before code.
-2. **Check** before starting: is there an open PR touching the path? (One query against the PR list — not a grep of coordination files.)
-3. **Release** is automatic on merge/close.
-4. A **CI lock guard** fails any PR touching a Lock path while another open PR touches the same path — the race window ("two personas check, both see nothing, both claim") is closed with no human in the loop.
+**Lock mechanics — the open PR is the lock (ADR-002 §3; this replaces the old
+markdown LOCK-commit protocol, which was itself race-prone):**
+1. **Claim** with `baron lock claim <path> --reason "<why>"` — it opens a draft PR
+   labeled `lock:<path>` from a `lock/<slug>` branch (one empty commit; the PR exists
+   only to hold the lock), and *refuses* if an open lock PR for the same path already
+   exists, showing the holder. Working without baron? Open the draft PR + `lock:<path>`
+   label by hand — the label is the contract, the tool is convenience.
+2. **Check** before starting: `baron lock list` (or one query of the open-PR list for
+   `lock:*` labels — never a grep of coordination files).
+3. **Release** with `baron lock release <path>` (closes the lock PR + deletes its
+   branch); merging or closing the lock PR releases it too.
+4. The **CI lock guard** (`.github/workflows/lock-guard.yml`, emitted with this repo)
+   fails any *other* PR touching a locked path — the race window ("two personas check,
+   both see nothing, both claim") is closed with no human in the loop. The lock PR
+   itself is exempt.
 
 **Owner mechanics — an evidence gate, not a human approver:** a PR touching an Owner path
 requires the declared evidence (e.g. a `contract-change`-style label plus a linked ADR or

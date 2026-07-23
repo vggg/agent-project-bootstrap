@@ -4,7 +4,100 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.5.0] — 2026-07-23
+
+The mechanisms release: baron grows enforcement (guard), locking (PR-as-lock), the
+worktree topology tooling, and status waivers — and the M1–M3 work ships properly.
+
+> **Honest release note:** the "baron CLI M1–M3" block below was developed and pushed
+> under `[Unreleased]` (2026-07-22) without a version cut — it reached `main` unreleased.
+> It is folded into this 1.5.0 entry verbatim rather than back-dated as a phantom
+> release; 1.5.0 is its first released version.
+
+### Added — `baron guard` M4: deterministic capability enforcement (ADR-004)
+
+- **`docs/adr/ADR-004-baron-guard-enforcement.md`** (accepted 2026-07-23) — why
+  hook-based sub-tool enforcement is a contract change deserving its own record: it
+  amends the enforceability-class honesty boundary (`capability-vocab.v1.md`) that every
+  adapter's "do not oversell" rule is built on.
+- **`baron guard --persona-file <persona.yaml>`** (`cli/src/baron/guard.py`) — a Claude
+  Code **PreToolUse hook** implementing the documented contract
+  (https://code.claude.com/docs/en/hooks): hook JSON on stdin (`tool_name`,
+  `tool_input`, `cwd`); exit 0 + silence = defer to the normal permission flow; exit 2 =
+  block with stderr fed to the model. Decision logic maps tool calls to the frozen v1
+  verbs: `git push` to the default branch → `push_main` (conservative on ambiguity —
+  an unresolvable target is inferred as the enforcement-relevant verb and denied for
+  personas lacking it, stderr naming the inference); force flags / `+refspec` →
+  `force_push`; `gh pr merge` → `merge_pr`; `git merge` while on the default branch →
+  `push_main`; Edit/Write/NotebookEdit paths → `write_path` scopes /
+  `edit_other_personas` / `write_code`, with `_handoff/` universally writable and a
+  persona's own `agents/<slug>/` dir its own surface. Non-git/gh commands and unknown
+  tools pass — a capability gate, not an allowlist. **Fail-closed but not brick**:
+  malformed stdin / unreadable persona → deny with actionable stderr;
+  `BARON_GUARD_OVERRIDE=<reason>` allows AND appends to the **tracked**
+  `.baron/guard-override.log` (overrides are visible in diffs; each is expected to
+  become a handoff). Env `BARON_PERSONA_FILE` honored.
+- **Claude adapter HYDRATE.md step 3c** — Tier 2/3 hydration also emits a
+  `.claude/settings.json` hooks block (PreToolUse, matcher
+  `Bash|Edit|Write|NotebookEdit` → `baron guard`), with the honest note: five sub-tool
+  denials (`push_main`, `force_push`, `merge_pr`, `write_path` scoping,
+  `edit_other_personas`) upgrade from instructed to ENFORCED **when baron is
+  installed**; without it the hook fails non-blocking and they degrade to instructed.
+  The capability map's sub-tool rows now claim the exact qualified form
+  `enforced-with-baron (instructed otherwise)` (`open_pr`/`run_tests` stay
+  `instructed` — guard does not parse for them), and
+  **`tests/bi_runtime_accept.py`**'s tier-consistency assertion accepts exactly that
+  form, only on sub-tool rows, only for the claude adapter.
+
+### Added — `baron lock` M5: PR-as-lock (mechanizes ADR-002 §3)
+
+- **`baron lock claim <path> [--reason]` / `release <path>` / `list`**
+  (`cli/src/baron/lock.py`) — the open PR is the lock: claim = `lock/<slug>` branch with
+  one empty commit (`git commit-tree`; the local checkout is never touched) + a draft PR
+  labeled `lock:<path>` with the reason in the body; claim refuses when an open lock PR
+  for the path exists, showing the holder; release closes the PR + deletes the branch;
+  list prints path/holder/age/PR#. Replaces the markdown LOCK-commit protocol.
+- **Forge Protocol extended** (additive): `create_branch`, `close_pr`, label-aware
+  `open_pr` (`head`, `labels` — labels created idempotently) and richer
+  `list_open_prs` (labels/author/createdAt/url). All `gh` calls stay behind the Forge
+  interface; `ForgeUnavailable` raised cleanly without `gh`; lock tests run against a
+  recorded fake forge — no live `gh`.
+- **`assets/collab-repo/.github/workflows/lock-guard.yml`** (new template) —
+  dependency-free CI guard (bash + the `gh` Actions provides): fails a PR that touches a
+  locked path unless it IS the lock PR; carries the ADR-002 §3 honest limitation
+  (without branch protection a red check is an alarm, not a wall). The emitted
+  `COORDINATION.md` lock mechanics now name the concrete commands and file.
+
+### Added — baron M6 tooling: worktree topology
+
+- **`baron worktree add <persona> [--root DIR]` / `list` / `remove [--force]`**
+  (`cli/src/baron/worktree.py`) — one shared object store, branch `persona/<slug>`,
+  worktrees under the manifest's `workspace.worktrees_root` (v1.2 seam, consumed
+  unchanged). `remove` refuses on dirt or unmerged commits unless `--force` and never
+  deletes the persona branch. `baron status` sweeps worktrees like clones (each
+  worktree reports its checked-out HEAD; the repo-wide branch sweep runs once).
+- **`docs/worktree-migration.md`** (new) — clone-per-persona → worktrees runbook
+  (drain clones, verify with `baron status --fetch`, create worktrees, repoint
+  manifest + session CLAUDE.md paths, retire clones) with an honest rollback section.
+  The live migration of the pilot workspace is deliberately NOT in this release.
+
+### Added — status waivers (from the pilot-triage backlog entry)
+
+- **`.baron-waivers.yaml` + `baron waiver add|list`** (`cli/src/baron/waivers.py`) —
+  `{subject (fnmatch on the status SUBJECT column), reason, handoff, expires}`.
+  `baron status` downgrades matching reds to warn with `(waived: <reason>)` appended;
+  EXPIRED waivers stop matching (the red resurfaces) and are reported as their own
+  `expired-waiver` warn; malformed entries are reported, never silently dropped.
+  `waiver add` refuses past expiry dates and duplicate patterns.
+
+### Changed — meta
+
+- `plugin.json` + `SKILL.md` frontmatter `1.4.0 → 1.5.0`; `baron-cli` package
+  `0.1.0 → 0.2.0`; `STATUS.md`, `README.md`, `cli/README.md`, `docs/BACKLOG.md`
+  (waivers entry removed as shipped; remaining M6/merger-preconditions/guard-coverage
+  items re-scoped), ADR-003 gains a §5 addendum for the lock/worktree/waiver decisions.
+- CLI test suite 36 → 74 tests (guard subprocess tests, fake-forge lock tests, worktree
+  fixture, waiver cases).
 
 ### Added — baron CLI M1–M3 (Phase 2: conventions → mechanisms, ADR-003)
 

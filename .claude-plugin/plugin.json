@@ -1,7 +1,7 @@
 {
   "name": "agent-project-bootstrap",
-  "description": "Scaffold a runtime-agnostic multi-agent project: one persona.yaml hydrates working personas on any AI coding agent (Claude Code, code-puppy, ...) via per-runtime adapters. One front door (START.md → ORCHESTRATE/PARTICIPATE); the legacy v0.3 emit modes are deprecated and quarantined in legacy/. Also ships a sister skill — multi-agent-audit — for grading multi-agent projects against an evidence-based rubric (read-only). v1.4 folds in the July-2026 ways-of-working (ADR-002): single-account first principle, everything-material-gets-a-handoff, lock-via-open-PR + CI guard, reviewer + merger personas, persona.yaml parity for librarian and autonomous archetypes, and real CI (adapter-table acceptance test + repo lint).",
-  "version": "1.4.0",
+  "description": "Scaffold a runtime-agnostic multi-agent project: one persona.yaml hydrates working personas on any AI coding agent (Claude Code, code-puppy, ...) via per-runtime adapters. One front door (START.md → ORCHESTRATE/PARTICIPATE); the legacy v0.3 emit modes are deprecated and quarantined in legacy/. Also ships a sister skill — multi-agent-audit — for grading multi-agent projects against an evidence-based rubric (read-only). v1.5 ships the baron CLI (ADR-003/004): validate/status/ledgers/handoffs (M1–M3), the baron guard PreToolUse hook (deterministic capability enforcement on Claude Code), baron lock (PR-as-lock + CI lock-guard template), worktree topology tooling, and expiring status waivers.",
+  "version": "1.5.0",
   "author": {
     "name": "vggg"
   }

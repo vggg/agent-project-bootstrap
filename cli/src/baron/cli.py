@@ -7,12 +7,25 @@ and writes the same human-legible collab-repo files the personas do.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Optional
 
 import typer
 
-from . import clock, handoff as handoff_mod, indexer, ledger, status as status_mod, validate as validate_mod
+from . import (
+    clock,
+    guard as guard_mod,
+    handoff as handoff_mod,
+    indexer,
+    ledger,
+    lock as lock_mod,
+    status as status_mod,
+    validate as validate_mod,
+    waivers as waivers_mod,
+    worktree as worktree_mod,
+)
+from .forge import ForgeError, ForgeUnavailable
 
 app = typer.Typer(
     name="baron",
@@ -317,6 +330,280 @@ def index(
             if not (r.duplicates or r.gaps or r.out_of_order):
                 typer.echo(f"ok      {r.kind}s: numbering duplicate-free and monotonic")
     raise typer.Exit(1 if duplicates else 0)
+
+
+# --- M4: guard ------------------------------------------------------------------------
+
+
+@app.command()
+def guard(
+    persona_file: Optional[Path] = typer.Option(
+        None,
+        "--persona-file",
+        envvar=guard_mod.PERSONA_ENV,
+        help="The acting persona's persona.yaml (or set BARON_PERSONA_FILE).",
+    ),
+) -> None:
+    """Claude Code PreToolUse hook: deterministic capability enforcement.
+
+    Reads the hook JSON from stdin (tool_name/tool_input/cwd per
+    https://code.claude.com/docs/en/hooks), maps the call to the frozen v1
+    capability verbs, and either stays silent (exit 0 — normal permission flow)
+    or blocks (exit 2, reason on stderr, fed to the model). Fail-closed on
+    internal errors; BARON_GUARD_OVERRIDE=<reason> allows AND appends to the
+    tracked .baron/guard-override.log. Wire-up: see the Claude adapter's
+    HYDRATE.md (matcher Bash|Edit|Write|NotebookEdit).
+    """
+    code, stderr_text = guard_mod.process(sys.stdin.read(), persona_file)
+    if stderr_text:
+        typer.echo(stderr_text, err=True)
+    raise typer.Exit(code)
+
+
+# --- M5: lock -------------------------------------------------------------------------
+
+lock_app = typer.Typer(
+    help="PR-as-lock (ADR-002 §3): the open PR is the lock; labels are the query surface.",
+    no_args_is_help=True,
+)
+app.add_typer(lock_app, name="lock")
+
+_REPO_OPT = typer.Option(
+    Path("."),
+    "--repo",
+    help="The repo the lock applies to (default: current directory).",
+)
+
+
+@lock_app.command("claim")
+def lock_claim(
+    path: str = typer.Argument(..., help="Repo-relative path (or glob) to lock."),
+    reason: Optional[str] = typer.Option(None, "--reason", help="Why the lock is held."),
+    repo: Path = _REPO_OPT,
+) -> None:
+    """Claim a lock: lock/<slug> branch + empty commit + draft PR labeled lock:<path>.
+
+    Refuses (showing the holder) if an open lock PR for the same path exists."""
+    try:
+        url = lock_mod.claim(repo.resolve(), path, reason=reason)
+    except (lock_mod.LockError, ForgeUnavailable, ForgeError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"locked {path} — {url}")
+
+
+@lock_app.command("release")
+def lock_release(
+    path: str = typer.Argument(..., help="The locked path to release."),
+    repo: Path = _REPO_OPT,
+) -> None:
+    """Release a lock: close its lock PR and delete the lock/<slug> branch."""
+    try:
+        number = lock_mod.release(repo.resolve(), path)
+    except (lock_mod.LockError, ForgeUnavailable, ForgeError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"released {path} (closed PR #{number})")
+
+
+@lock_app.command("list")
+def lock_list(
+    repo: Path = _REPO_OPT,
+    json_out: bool = typer.Option(False, "--json", help="Machine-readable output."),
+) -> None:
+    """List open locks (every open PR carrying a lock:* label)."""
+    try:
+        locks = lock_mod.list_locks(repo.resolve())
+    except (ForgeUnavailable, ForgeError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1)
+    if json_out:
+        _echo_json([l.to_dict() for l in locks])
+    else:
+        typer.echo(lock_mod.render_table(locks))
+
+
+# --- M6 tooling: worktrees ------------------------------------------------------------
+
+worktree_app = typer.Typer(
+    help="Branch-per-persona worktree topology (one shared object store).",
+    no_args_is_help=True,
+)
+app.add_typer(worktree_app, name="worktree")
+
+_WT_REPO_OPT = typer.Option(
+    None,
+    "--repo",
+    help="The code repo (default: manifest repos[role=code] via --collab, else cwd).",
+)
+_WT_ROOT_OPT = typer.Option(
+    None,
+    "--root",
+    help="Worktrees root (default: manifest workspace.worktrees_root via --collab).",
+)
+
+
+def _worktree_context(
+    collab: Path, repo_opt: Optional[Path], root_opt: Optional[Path], *, need_root: bool
+) -> tuple[Path, Optional[Path]]:
+    """Resolve (code_repo, worktrees_root) from options, falling back to the
+    manifest (workspace.worktrees_root, repos[role=code])."""
+    repo = repo_opt
+    root = root_opt
+    if repo is None or (root is None and need_root):
+        try:
+            manifest = status_mod.load_manifest(collab.resolve())
+        except (FileNotFoundError, ValueError) as exc:
+            if repo is None:
+                repo = Path(".")
+            if root is None and need_root:
+                typer.echo(
+                    f"error: --root not given and manifest unavailable ({exc})", err=True
+                )
+                raise typer.Exit(2)
+            manifest = None
+        if manifest is not None:
+            manifest_root = status_mod._resolve_root(collab.resolve(), manifest)
+            if repo is None:
+                for entry in manifest.get("repos", []) or []:
+                    if isinstance(entry, dict) and entry.get("role") == "code":
+                        repo = (manifest_root / str(entry.get("path", "."))).resolve()
+                        break
+                else:
+                    repo = Path(".")
+            if root is None:
+                worktrees_root = (manifest.get("workspace") or {}).get("worktrees_root")
+                if worktrees_root:
+                    root = (manifest_root / str(worktrees_root)).resolve()
+                elif need_root:
+                    typer.echo(
+                        "error: no --root and the manifest has no "
+                        "workspace.worktrees_root", err=True,
+                    )
+                    raise typer.Exit(2)
+    assert repo is not None
+    return repo.resolve(), root
+
+
+@worktree_app.command("add")
+def worktree_add(
+    persona: str = typer.Argument(..., help="Persona slug (branch persona/<slug>)."),
+    root: Optional[Path] = _WT_ROOT_OPT,
+    repo: Optional[Path] = _WT_REPO_OPT,
+    collab: Path = _COLLAB_OPT,
+) -> None:
+    """Create <root>/<persona> as a git worktree on branch persona/<persona>
+    (created from the default branch if missing)."""
+    code_repo, wt_root = _worktree_context(collab, repo, root, need_root=True)
+    assert wt_root is not None
+    try:
+        dest = worktree_mod.add(code_repo, persona, wt_root)
+    except worktree_mod.WorktreeError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1)
+    typer.echo(dest.as_posix())
+
+
+@worktree_app.command("list")
+def worktree_list(
+    repo: Optional[Path] = _WT_REPO_OPT,
+    collab: Path = _COLLAB_OPT,
+    json_out: bool = typer.Option(False, "--json", help="Machine-readable output."),
+) -> None:
+    """List worktrees with each branch's ahead/behind vs the default branch."""
+    code_repo, _ = _worktree_context(collab, repo, None, need_root=False)
+    try:
+        worktrees = worktree_mod.list_worktrees(code_repo)
+    except worktree_mod.WorktreeError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1)
+    if json_out:
+        _echo_json([w.to_dict() for w in worktrees])
+    else:
+        typer.echo(worktree_mod.render_table(worktrees))
+
+
+@worktree_app.command("remove")
+def worktree_remove(
+    persona: str = typer.Argument(..., help="Persona slug whose worktree to remove."),
+    repo: Optional[Path] = _WT_REPO_OPT,
+    collab: Path = _COLLAB_OPT,
+    force: bool = typer.Option(
+        False, "--force", help="Remove even if dirty or holding unmerged commits."
+    ),
+) -> None:
+    """Remove a persona worktree. Refuses when dirty or unmerged unless --force;
+    the persona/<slug> branch is kept either way."""
+    code_repo, _ = _worktree_context(collab, repo, None, need_root=False)
+    try:
+        removed = worktree_mod.remove(code_repo, persona, force=force)
+    except worktree_mod.WorktreeError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"removed {removed.as_posix()} (branch persona/{persona} kept)")
+
+
+# --- waivers --------------------------------------------------------------------------
+
+waiver_app = typer.Typer(
+    help="Status waivers (.baron-waivers.yaml): park a red deliberately, with expiry.",
+    no_args_is_help=True,
+)
+app.add_typer(waiver_app, name="waiver")
+
+
+@waiver_app.command("add")
+def waiver_add(
+    pattern: str = typer.Argument(
+        ..., help="fnmatch pattern on the `baron status` SUBJECT column."
+    ),
+    reason: str = typer.Option(..., "--reason", help="Why the red is deliberate."),
+    handoff: str = typer.Option(
+        ..., "--handoff", help="Collab-relative handoff path documenting the park."
+    ),
+    expires: str = typer.Option(..., "--expires", help="YYYY-MM-DD expiry."),
+    collab: Path = _COLLAB_OPT,
+) -> None:
+    """Add a waiver: matching red findings show as warn until the expiry."""
+    try:
+        path = waivers_mod.add(
+            collab.resolve(), pattern, reason=reason, handoff=handoff, expires=expires
+        )
+    except waivers_mod.WaiverError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1)
+    typer.echo(path.as_posix())
+
+
+@waiver_app.command("list")
+def waiver_list(
+    collab: Path = _COLLAB_OPT,
+    json_out: bool = typer.Option(False, "--json", help="Machine-readable output."),
+) -> None:
+    """List waivers (active and expired) with their expiry state."""
+    entries, problems = waivers_mod.load(collab.resolve())
+    today = clock.today()
+    if json_out:
+        _echo_json(
+            {
+                "waivers": [
+                    {**w.to_dict(), "expired": w.expired(today)} for w in entries
+                ],
+                "problems": problems,
+            }
+        )
+        return
+    if not entries and not problems:
+        typer.echo("no waivers")
+        return
+    for w in entries:
+        state = "EXPIRED" if w.expired(today) else "active"
+        typer.echo(
+            f"{state:7s} {w.subject}  expires={w.expires.isoformat()} "
+            f"reason={w.reason} handoff={w.handoff}"
+        )
+    for problem in problems:
+        typer.echo(f"problem {problem}")
 
 
 def main() -> None:  # pragma: no cover - console-script convenience

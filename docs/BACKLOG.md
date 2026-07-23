@@ -33,19 +33,31 @@ distribution*, not in `baron` core. GitHub stays the only built-in.
 (single-account constraint, ADR-002 §1). Same rule as runtime adapters: add when a real
 project on that forge exists.
 
-## Worktree / branch-per-persona local topology (baron M6)
+## Worktree topology — live migration + repair (rest of baron M6)
 
-**What:** `baron` gains commands to *create and repair* the persona working-copy topology
-(one shared object store via `git worktree`, one branch per persona), preventing the
-stranding classes `baron status` currently only detects (ADR-003 §2.7). The M2 manifest
-fields `workspace.clones` / `workspace.worktrees_root` are the forward-compatible seam.
+**What (remaining):** the *tooling* shipped in v1.5.0 (`baron worktree add|list|remove`,
+status sweep, [`docs/worktree-migration.md`](worktree-migration.md)); still open are the
+**live migration** of a real clone-per-persona workspace (the pilot) and any *repair*
+commands the migration shows are needed (e.g. re-registering a moved worktree,
+`git worktree prune` wrapping).
 
-## Forge-consuming commands (baron M4+)
+## Merger precondition verification (baron, forge-consuming)
 
-**What:** the first commands that actually call `get_forge()` — e.g. `baron handoff`
-PR-awareness (is a lock-holding PR still open?), the ADR-002 §3 lock-guard check as a baron
-subcommand runnable in CI, and Merger precondition verification (ADR-002 §4: CI green +
-SHA-bound REVIEW:PASS on the current head). Until then `forge/` is a Protocol + one stub.
+**What:** ADR-002 §4 mechanized: a baron subcommand the Merger persona (or CI) runs
+against a PR — verifies CI green on the *current* head SHA plus a SHA-bound
+`REVIEW:PASS <sha>` comment naming that same head, record obligations, and no lock
+collision — and merges or refuses naming the failed precondition. The forge Protocol
+(post-M5: `list_open_prs` with labels/author, `close_pr`, `create_branch`) plus a
+PR-comment query are the seam. Also still open from the original M4+ sketch:
+`baron handoff` PR-awareness (is a lock-holding PR still open?).
+
+## Guard coverage growth (baron guard, post-ADR-004)
+
+**What:** deliberately out of the v1.5.0 guard: `open_pr`/`run_tests` denial parsing
+(rarely denied in practice; add on observed need per the vocabulary's rule 4), hook
+seams for other runtimes (code-puppy has no PreToolUse equivalent today), and the lock
+soft-timeout sweep (`COORDINATION.md` names a 24h soft timeout; `baron lock list`
+shows age — flagging expiry candidates could fold into `baron status`).
 
 ## Consciously deferred inside M1–M3
 
@@ -59,4 +71,6 @@ SHA-bound REVIEW:PASS on the current head). Until then `forge/` is a Protocol + 
 - **Handoff `updated:`-field maintenance** on close is not touched; only `status`/`closed:`
   are edited, textually.
 
-- **`baron status` waivers (surfaced by first pilot triage, 2026-07-23):** a `.baron-waivers.yaml` (or manifest block) mapping check subjects to a waiver {reason, handoff-file, expires} so deliberately-parked items (e.g. a branch kept for a future experiment) downgrade red -> warn with the reason shown, instead of staying red forever. Expiry keeps waivers honest.
+> The **`baron status` waivers** entry that lived here (surfaced by the first pilot
+> triage, 2026-07-23) shipped in v1.5.0 as `.baron-waivers.yaml` + `baron waiver add|list`
+> — see `cli/README.md`.

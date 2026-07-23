@@ -12,7 +12,10 @@ marker) plus the frozen vocabulary table in references/capability-vocab.v1.md, a
       categories, denies, whole-tool denial honoring);
   (c) enforcement-tier claims are consistent: the generic (Tier 1) adapter claims
       `instructed` for everything; Tier-3 adapters (claude, code-puppy) claim `enforced`
-      exactly for whole-tool verbs and never for sub-tool verbs.
+      exactly for whole-tool verbs and never plain `enforced` for sub-tool verbs. The
+      claude adapter (only) may claim the exact qualified form
+      `enforced-with-baron (instructed otherwise)` on sub-tool rows — the baron guard
+      PreToolUse hook (baron M4, ADR-004); any other wording fails.
 
 Editing a HYDRATE.md table incorrectly (dropping a verb, flipping a Grants category,
 overclaiming enforcement) fails this test.
@@ -32,7 +35,11 @@ ADAPTERS = ["claude", "code-puppy", "generic"]
 TIER3_ADAPTERS = {"claude", "code-puppy"}
 MARKER = "capability-map:v1"
 VALID_GRANTS = {"read", "write", "shell"}
-VALID_ENFORCEMENT = {"enforced", "instructed"}
+# The ONE accepted qualified form (exact string) for sub-tool denials that the
+# baron guard PreToolUse hook enforces on Claude Code when baron is installed.
+BARON_QUALIFIED = "enforced-with-baron (instructed otherwise)"
+HOOK_GUARD_ADAPTERS = {"claude"}  # only claude has the guard hook wiring
+VALID_ENFORCEMENT = {"enforced", "instructed", BARON_QUALIFIED}
 
 FAILURES = []
 
@@ -183,7 +190,9 @@ def parse_adapter_map(path):
             "sub-tool" if cls.startswith("sub-tool") else cls)
         grants = m.group(3).strip()
         tools = set(re.findall(r"`([^`]+)`", m.group(4)))
-        enforcement = m.group(5).strip().split()[0] if m.group(5).strip() else ""
+        # Full cell text (not first word): the baron-qualified enforcement form
+        # is multi-word and only its EXACT wording is accepted.
+        enforcement = re.sub(r"\*+", "", m.group(5)).strip()
         rows[verb] = {"class": cls, "grants": grants, "tools": tools,
                       "enforcement": enforcement}
     return rows
@@ -273,9 +282,14 @@ def main():
                          " (everything at Tier 1 is instructed)")
             else:
                 expected = "enforced" if vocab[verb] == "whole-tool" else "instructed"
-                if row["enforcement"] != expected:
+                allowed = {expected}
+                if vocab[verb] == "sub-tool" and name in HOOK_GUARD_ADAPTERS:
+                    # baron guard hook: sub-tool rows may claim the exact
+                    # qualified form (and only that form) instead.
+                    allowed.add(BARON_QUALIFIED)
+                if row["enforcement"] not in allowed:
                     fail(f"[{name}] {verb}: Deny enforcement '{row['enforcement']}' but the"
-                         f" {vocab[verb]} class implies '{expected}'")
+                         f" {vocab[verb]} class allows only {sorted(allowed)}")
         # Tier-3 adapters must name real tools; generic must not
         for verb, row in amap.items():
             if name in TIER3_ADAPTERS and not row["tools"]:

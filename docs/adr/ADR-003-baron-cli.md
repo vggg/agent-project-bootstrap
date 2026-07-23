@@ -144,3 +144,40 @@ scope. M2's optional `workspace.clones` / `workspace.worktrees_root` manifest fi
 [`cli/README.md`](../../cli/README.md)). M4+ (forge-consuming commands, lock guard
 mechanization, worktree topology M6) are tracked in [`docs/BACKLOG.md`](../BACKLOG.md) and
 `STATUS.md`.
+
+## 5. Addendum (2026-07-23): M4/M5/M6-tooling + waivers decisions
+
+Shipped with v1.5.0; recorded here because they execute this ADR's roadmap. The one
+*contract*-changing decision — `baron guard` upgrading five sub-tool denials from
+instructed to enforced on Claude Code — got its own record,
+[ADR-004](ADR-004-baron-guard-enforcement.md), since it amends the enforceability-class
+honesty boundary rather than just adding a mechanism.
+
+- **§5.1 — Lock = the forge's PR state, nothing else (M5).** `baron lock claim|release|list`
+  mechanizes ADR-002 §3: claim = draft PR labeled `lock:<path>` from a `lock/<slug>` branch
+  carrying one empty commit (created via `git commit-tree` + push — never touching the local
+  checkout; GitHub refuses a PR whose head equals its base, so the empty commit is
+  load-bearing); release = close PR + delete branch; the open-PR list is the only query
+  surface. Consistent with §2.2: no lock files, no state — the forge already holds the
+  authoritative open/closed bit, exactly like §2.5 lets git's push atomicity hold the ID
+  lock. The forge Protocol grew `create_branch`/`close_pr` + label-aware `open_pr`/
+  `list_open_prs` (additive; plugins implementing the old surface miss only lock support).
+  The CI side ships as a dependency-free template,
+  `assets/collab-repo/.github/workflows/lock-guard.yml` (bash + `gh`), which fails any
+  *other* PR touching a locked path — closing the §1 "markdown LOCK commits" race for real.
+- **§5.2 — Worktree topology commands (M6 tooling).** `baron worktree add|list|remove`
+  builds the §2.7 topology: one shared object store, branch `persona/<slug>`, worktrees
+  under `workspace.worktrees_root` (manifest v1.2 — the M2 seam, consumed unchanged).
+  `remove` refuses on dirt or unmerged commits unless `--force`, and NEVER deletes the
+  persona branch — removing a working copy must not destroy history. `baron status` sweeps
+  worktrees with the same checks as clones but runs the repo-wide branch sweep only once
+  (worktrees share every local branch; sweeping per worktree would duplicate findings).
+  Migration runbook: [`docs/worktree-migration.md`](../worktree-migration.md). The live
+  migration of a real workspace is deliberately NOT part of this release.
+- **§5.3 — Status waivers, expiry-honest.** `.baron-waivers.yaml` (collab root,
+  human-legible YAML per §2.2) + `baron waiver add|list`: a waiver fnmatch-es the status
+  SUBJECT column and downgrades matching reds to warn with the reason appended — parked
+  work stays *visible*, just not alarm-red. Expiry is mandatory: an expired waiver stops
+  matching (the red resurfaces) and is itself reported as a warn, so waivers cannot rot
+  into permanent silence. Malformed entries are reported, never silently dropped — a
+  waiver that doesn't parse must not hide a red.

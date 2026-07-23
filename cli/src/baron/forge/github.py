@@ -1,11 +1,11 @@
 """GitHub forge — implemented over the ``gh`` CLI via subprocess.
 
-Stub scope (M1–M3): nothing in baron's shipped commands calls this yet; it
-exists so the Protocol has one real implementation and so forge-consuming
-milestones (and plugins) have the pattern to follow. ``gh`` is an accepted
-prerequisite for forge features only — its absence raises
-:class:`ForgeUnavailable` with an actionable message, and no M1–M3 path
-requires it.
+First real consumer: ``baron lock`` (M5, PR-as-lock per ADR-002 §3). ``gh``
+is an accepted prerequisite for forge features only — its absence raises
+:class:`ForgeUnavailable` with an actionable message, and no non-forge path
+requires it. Branch plumbing (:meth:`create_branch`) is plain git via
+subprocess — it lives behind the Forge interface so lock logic stays
+forge-neutral and mockable.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from ..gitutil import GitError, git
 from .base import ForgeError, ForgeUnavailable
 
 
@@ -27,8 +28,9 @@ class GitHubForge:
     def _gh(self, repo: Path, *args: str) -> str:
         if not self.available():
             raise ForgeUnavailable(
-                "GitHub CLI (`gh`) not found on PATH — install it for forge features; "
-                "all of validate/status/finding/decision/handoff/index work without it"
+                "GitHub CLI (`gh`) not found on PATH — install it for forge features "
+                "(baron lock); everything else (validate/status/finding/decision/"
+                "handoff/index/guard/worktree/waiver) works without it"
             )
         proc = subprocess.run(
             ["gh", *args],
@@ -57,10 +59,19 @@ class GitHubForge:
         body: str,
         base: str | None = None,
         draft: bool = False,
+        head: str | None = None,
+        labels: list[str] | None = None,
     ) -> str:
+        for label in labels or []:
+            # Idempotent: --force updates an existing label instead of failing.
+            self._gh(repo, "label", "create", label, "--force")
         args = ["pr", "create", "--title", title, "--body", body]
         if base:
             args += ["--base", base]
+        if head:
+            args += ["--head", head]
+        for label in labels or []:
+            args += ["--label", label]
         if draft:
             args.append("--draft")
         return self._gh(repo, *args).strip()
@@ -68,7 +79,29 @@ class GitHubForge:
     def list_open_prs(self, repo: Path) -> list[dict[str, object]]:
         out = self._gh(
             repo, "pr", "list", "--state", "open",
-            "--json", "number,title,headRefName",
+            "--json", "number,title,headRefName,labels,author,createdAt,url",
         )
         loaded = json.loads(out or "[]")
         return loaded if isinstance(loaded, list) else []
+
+    def create_branch(self, repo: Path, *, branch: str, base: str, message: str) -> None:
+        """Branch + empty commit + push, without touching the local checkout:
+        ``git commit-tree`` writes an empty commit on top of ``origin/<base>``
+        and the push publishes it as ``branch``. (An empty commit is required —
+        GitHub refuses a PR whose head equals its base.)"""
+        try:
+            git(repo, "fetch", "origin", base)
+            base_ref = f"origin/{base}"
+            tree = git(repo, "rev-parse", f"{base_ref}^{{tree}}").stdout.strip()
+            commit = git(
+                repo, "commit-tree", tree, "-p", base_ref, "-m", message
+            ).stdout.strip()
+            git(repo, "push", "origin", f"{commit}:refs/heads/{branch}")
+        except GitError as exc:
+            raise ForgeError(f"cannot create branch {branch!r}: {exc}") from exc
+
+    def close_pr(self, repo: Path, number: int, *, delete_branch: bool = False) -> None:
+        args = ["pr", "close", str(number)]
+        if delete_branch:
+            args.append("--delete-branch")
+        self._gh(repo, *args)

@@ -99,19 +99,32 @@ and [ADR-002](docs/adr/ADR-002-ways-of-working-2026-07.md) for the field-proven 
 coordination rules baked into the templates (single-account constraint, everything-material-
 gets-a-handoff, lock-via-open-PR + CI guard, reviewer/merger personas).
 
-## baron CLI (Phase 2, in progress)
+## baron CLI (Phase 2)
 
 Phase 2 of the roadmap converts the coordination *conventions* above into *mechanisms*:
-**[`baron`](cli/README.md)** (`cli/`, per [ADR-003](docs/adr/ADR-003-baron-cli.md)) is a
-small typer CLI — a disciplined reader/writer over collab-repo files; the markdown/git
-substrate stays the only database. Milestones M1–M3 are in:
+**[`baron`](cli/README.md)** (`cli/`, per [ADR-003](docs/adr/ADR-003-baron-cli.md) and
+[ADR-004](docs/adr/ADR-004-baron-guard-enforcement.md)) is a small typer CLI — a
+disciplined reader/writer over collab-repo files; the markdown/git substrate stays the
+only database. Shipped (v1.5.0):
 
 - `baron validate` — persona.yaml / manifest.yaml against the canonical schemas, with the
   frozen 10-verb vocabulary embedded and drift-guarded against the prose spec.
-- `baron status` — clone/branch divergence (the three stranding classes from the 2026-07-22
-  field incident), overdue open handoffs, and ledger/wiki staleness, CI-usable exit codes.
+- `baron status` — clone/branch/worktree divergence (the three stranding classes from the
+  2026-07-22 field incident), overdue open handoffs, ledger/wiki staleness, CI-usable exit
+  codes — plus expiring **waivers** (`baron waiver add`, `.baron-waivers.yaml`) so
+  deliberately-parked reds show as warns with the reason, never silently.
 - `baron finding|decision new` — race-safe F/D-number allocation via push-retry;
   `baron handoff create|close|list` (archive-not-delete lifecycle) and `baron index`.
+- `baron guard` — deterministic capability enforcement as a Claude Code **PreToolUse
+  hook** (ADR-004): denied `push_main`/`force_push`/`merge_pr`/`write_path` scopes/
+  `edit_other_personas` are blocked *before the tool runs*, upgrading those sub-tool
+  denials from instructed to enforced when baron is installed (honest degradation
+  otherwise). Overrides are allowed-but-logged to a tracked file.
+- `baron lock claim|release|list` — PR-as-lock (ADR-002 §3): a draft PR labeled
+  `lock:<path>` is the lock; a dependency-free CI guard template
+  (`lock-guard.yml`) fails other PRs touching a locked path.
+- `baron worktree add|list|remove` — the branch-per-persona worktree topology (one shared
+  object store; migration runbook in [`docs/worktree-migration.md`](docs/worktree-migration.md)).
 
 ```bash
 uv tool install ./cli && baron --help

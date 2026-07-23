@@ -11,6 +11,11 @@ severity:
 - warn — uncommitted dirt, ledger staleness vs code-repo activity (an explicit
   HEURISTIC), wiki/status.md older than the newest finding.
 
+Deliberately-parked reds can be waived via ``.baron-waivers.yaml``
+(``baron waiver add``): a matching, unexpired waiver downgrades red -> warn
+with the reason appended; expired waivers stop matching and are reported as
+their own warn. See :mod:`baron.waivers`.
+
 Exit 0 = green (warnings allowed); exit 1 = at least one red finding (CI-usable).
 """
 
@@ -23,7 +28,7 @@ from pathlib import Path
 
 import yaml
 
-from . import clock, gitutil
+from . import clock, gitutil, waivers as waivers_mod
 from .frontmatter import as_date, split_frontmatter
 
 RED = "red"
@@ -83,7 +88,12 @@ def _targets(collab: Path, manifest: dict) -> list[tuple[str, Path]]:
 
 
 def _check_working_copy(
-    label: str, path: Path, fetch: bool, out: list[StatusFinding]
+    label: str,
+    path: Path,
+    fetch: bool,
+    out: list[StatusFinding],
+    *,
+    sweep_branches: bool = True,
 ) -> None:
     subject = f"{label} {path}"
     if not path.is_dir():
@@ -130,6 +140,8 @@ def _check_working_copy(
                           f"{behind} commit(s) behind {upstream} (never pulled)")
         )
 
+    if not sweep_branches:
+        return
     today = clock.today()
     for branch, ts in gitutil.local_branches(path):
         if branch == default:
@@ -245,14 +257,48 @@ def _check_wiki(collab: Path, out: list[StatusFinding]) -> None:
         )
 
 
+def _apply_waivers(collab: Path, out: list[StatusFinding]) -> None:
+    """Downgrade waived reds to warn (reason shown); surface expired/broken
+    waivers as warns of their own. See baron.waivers."""
+    active_waivers, problems = waivers_mod.load(collab)
+    today = clock.today()
+    expired = [w for w in active_waivers if w.expired(today)]
+    live = [w for w in active_waivers if not w.expired(today)]
+    for f in out:
+        if f.severity != RED:
+            continue
+        waiver = next((w for w in live if w.matches(f.subject)), None)
+        if waiver is not None:
+            f.severity = WARN
+            f.detail += f" (waived: {waiver.reason})"
+    for w in expired:
+        out.append(
+            StatusFinding(
+                WARN, "waiver", w.subject, "expired-waiver",
+                f"waiver expired {w.expires.isoformat()} — matching reds resurface "
+                f"(reason was: {w.reason}; handoff: {w.handoff})",
+            )
+        )
+    for problem in problems:
+        out.append(StatusFinding(WARN, "waiver", waivers_mod.WAIVERS_FILE,
+                                 "invalid-waiver", problem))
+
+
 def collect(collab: Path, *, fetch: bool = False, sla_days: int = 14) -> list[StatusFinding]:
     manifest = load_manifest(collab)
     out: list[StatusFinding] = []
     for label, path in _targets(collab, manifest):
-        _check_working_copy(label, path, fetch, out)
+        # Worktrees share one object store: every local branch is visible from
+        # every worktree, so the branch sweep runs once (on repo/clone targets)
+        # and each worktree reports only its own checked-out HEAD's divergence.
+        _check_working_copy(
+            label, path, fetch, out,
+            sweep_branches=not label.startswith("worktree:"),
+        )
     _check_handoffs(collab, sla_days, out)
     _check_ledger_staleness(collab, manifest, out)
     _check_wiki(collab, out)
+    _apply_waivers(collab, out)
     return out
 
 

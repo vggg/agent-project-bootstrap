@@ -1,7 +1,8 @@
 """Forge abstraction — pluggable code-hosting backends.
 
 GitHub ships built-in (via the ``gh`` CLI, an accepted prerequisite for forge
-features only — everything in M1–M3 works without it). Other forges arrive as
+features only — every non-forge command works without it; ``baron lock`` is
+the first forge consumer). Other forges arrive as
 plugins through the ``baron.forges`` entry-point group (see docs/BACKLOG.md for
 the GitLab design sketch): a plugin distribution registers
 
