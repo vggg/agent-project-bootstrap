@@ -17,13 +17,14 @@ Open an issue first describing what you want to change and why. Small fixes (typ
 3. Invoke in a throwaway directory: ask Claude to use the `agent-project-bootstrap` skill to set up a test project.
 4. Verify the emitted files match your intended changes and all placeholders resolve correctly.
 
-For PRs touching adapters, references, or the v1.0 canonical contract files, also run the bi-runtime acceptance test before pushing:
+For PRs touching adapters, references, or the canonical contract files, also run the tests before pushing (stdlib only — no dependencies):
 
 ```bash
-uv run --with pyyaml python tests/bi_runtime_accept.py
+python3 tests/bi_runtime_accept.py
+python3 tests/lint_repo.py
 ```
 
-It validates that one `persona.yaml` hydrates to an equivalent behavior contract on both Claude Code and code-puppy adapters. (The harness needs PyYAML; `uv run --with pyyaml` supplies it without a global install.)
+The acceptance harness parses the machine-readable capability maps in the adapters' `HYDRATE.md` files and validates that one `persona.yaml` hydrates to an equivalent behavior contract on every adapter (Claude Code, code-puppy, generic) with consistent enforcement claims. The lint catches unfilled placeholders, dead relative links, fixture-name leaks, and plugin/SKILL version drift. CI (`.github/workflows/ci.yml`) runs both on every push and PR.
 
 ## Documentation is part of every PR
 
@@ -47,7 +48,7 @@ Reviewers must request docs before merging, not after.
 - New placeholders (with corresponding SKILL.md inventory updates)
 - Emit process clarity (clearer steps, better verification instructions)
 - Reference documentation (`references/design-decisions.md`, `references/obsidian-setup.md`)
-- Persona files (`assets/vault/_meta/PERSONAS/`)
+- Persona archetype templates (`assets/collab-repo/agents/`)
 - Bug fixes and leak prevention
 - Runtime adapters per ADR-001 (`adapters/<runtime>/HYDRATE.md` and supporting canonical files)
 - Persona archetypes per ADR-001 (dev / autonomous-event / autonomous-cron / librarian, plus future archetypes the spec defines)

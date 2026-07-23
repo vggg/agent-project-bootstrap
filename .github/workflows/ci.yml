@@ -1,0 +1,19 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      # Both tests are stdlib-only — no dependency install step by design.
+      - name: Bi-runtime acceptance (parses the real adapter tables)
+        run: python tests/bi_runtime_accept.py
+      - name: Repo lint (placeholders, dead links, fixture leaks, version sync)
+        run: python tests/lint_repo.py

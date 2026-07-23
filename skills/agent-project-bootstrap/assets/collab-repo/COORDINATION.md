@@ -12,9 +12,9 @@ How the personas on this project coordinate work. Read at session start.
 
 | Persona | Archetype | Owns |
 |---|---|---|
-| (one row per persona — fill from `agents/<persona>/AGENT.md`) | dev / autonomous-event / autonomous-cron / librarian | |
+| (one row per persona — fill from `agents/<persona>/AGENT.md`) | dev / autonomous-event / autonomous-cron / librarian (+ optional reviewer / merger dev-variants) | |
 
-Full operating manuals: `agents/<persona>/AGENT.md`.
+Full operating manuals: `agents/<persona>/AGENT.md` (derived from `agents/<persona>/persona.yaml` — the yaml is canonical).
 
 ---
 
@@ -42,7 +42,7 @@ Then: begin work.
 
 - **One branch per active task.** Don't open parallel branches against the same files.
 - **No direct commits to `main`** on the code repo. All changes via PR.
-- **PR review:** code repo PRs are reviewed per the project's review policy (see `BOOTSTRAP-ADMIN.md`); collab repo PRs go through {{OWNER_HANDLE}} during initial trust window if active.
+- **PR review:** code repo PRs are reviewed per the project's review policy (see `§ Review and merge` below and `BOOTSTRAP-ADMIN.md`); collab repo PRs go through {{OWNER_HANDLE}} during initial trust window if active.
 - **Scope discipline:** for any ticket touching more than 3 files, a schema migration, or a public module boundary — write the plan in chat and stop for {{OWNER_HANDLE}}'s review before writing code.
 
 ---
@@ -61,16 +61,52 @@ Hot files for this project:
 |---|---|---|---|
 | `CONVENTIONS.md` (this repo) | Owner | {{OWNER_HANDLE}} | Project rules; rare changes; file ticket |
 | `COORDINATION.md` (this repo) | Owner | {{OWNER_HANDLE}} | Same |
-| `agents/<persona>/AGENT.md` | Owner | that persona (or {{OWNER_HANDLE}}) | Persona's own manual |
-| `wiki/log.md`, `wiki/*` | Owner | Librarian | Only the Librarian writes here |
+| `agents/<persona>/persona.yaml` + `AGENT.md` | Owner | that persona (or {{OWNER_HANDLE}}) | Persona's own canonical spec + manual |
+| `wiki/log.md`, `wiki/*` | Owner | Librarian | Enforced by capability — `write_path: [wiki]` is denied to everyone else |
 | {{HOT_FILES_TABLE_ROWS}} | | | *(add tech-stack-specific hot files here — e.g. schema files, lockfiles)* |
 
-**Label-lock mechanics:**
-1. Claim by adding the lock label to the issue/PR.
-2. Release on merge automatically, or on close explicitly.
-3. 24-hour soft timeout — anyone may ping the holder; release after 4h non-response if held longer than 24h.
+**Lock mechanics — the open PR is the lock (ADR-002 §3):**
+1. **Claim** by opening a PR (draft is fine) touching the path, and add the matching `lock:<area>` label so conflicting *design* work is caught before code.
+2. **Check** before starting: is there an open PR touching the path? (One query against the PR list — not a grep of coordination files.)
+3. **Release** is automatic on merge/close.
+4. A **CI lock guard** fails any PR touching a Lock path while another open PR touches the same path — the race window ("two personas check, both see nothing, both claim") is closed with no human in the loop.
 
-If a project routinely hits the timeout, refactor toward architectural separation.
+**Owner mechanics — an evidence gate, not a human approver:** a PR touching an Owner path
+requires the declared evidence (e.g. a `contract-change`-style label plus a linked ADR or
+`_handoff/`). CI checks that the discipline was followed; the owner reviews when they want
+to, not because the merge is stuck. Exception: where the Owner pattern is already enforced by
+a **capability denial** (like `wiki/`), keep it — a write gate is strictly stronger than any
+review gate; don't migrate it to CI.
+
+> **Honest limitation:** without branch protection (unavailable on free private repos), a red
+> check does not physically block a merge — the guard is enforcement by convention plus a
+> visible alarm. That is still strictly better than a silent manual check.
+
+---
+
+## Review and merge (optional Reviewer/Merger module — ADR-002 §4)
+
+Projects that adopt the reviewer + merger personas (`agents/__REVIEWER__/`,
+`agents/__MERGER__/` templates) route every code-repo merge through them:
+
+1. **Dev opens the PR** and requests review (label `agent-<reviewer-slug>` or a `_handoff/`).
+2. **Reviewer** (fresh context, adversarial, read-only) reviews judgement — not mechanics CI
+   already covers — and publishes a **verdict as a PR comment bound to the exact head SHA
+   reviewed** (`REVIEW:PASS <sha>` / `REVIEW:FAIL <sha>`). Never the platform's approve:
+   under the single-account constraint (`CONVENTIONS.md`), self-approval is blocked and the
+   comment is the verdict surface. A verdict is about a **commit** — a new push makes it stale.
+3. **Merger** — the only persona holding `merge_pr` — verifies preconditions and merges, or
+   refuses naming the failed precondition: CI green on the *current* head SHA; a REVIEW:PASS
+   naming the *current* head SHA; record obligations met (handoffs for material
+   findings/decisions); no hot-file collision.
+
+Projects without the module: per-project review policy decides, and `merge_pr` typically
+stays with {{OWNER_HANDLE}}.
+
+**Persona-spec CI validation (ADR-002 §5):** the repo's CI validates every
+`agents/*/persona.yaml` on each PR — it parses, required schema fields are present, and
+capability verbs come from the frozen v1 vocabulary. An invalid canonical spec is worse than
+a missing one; every adapter hydrates from it.
 
 ---
 

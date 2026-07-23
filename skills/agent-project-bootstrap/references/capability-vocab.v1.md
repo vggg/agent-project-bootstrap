@@ -82,8 +82,10 @@ stays intent-level.)
 
 ## Mapping note
 
-The abstract->concrete mapping for code-puppy lives in `adapters/code-puppy/HYDRATE.md`
-(and `docs/notes/code-puppy-capability-map.md`). The canon does NOT name runtime tools.
+The abstract->concrete mapping lives in each adapter's normalized capability map
+(`adapters/<runtime>/HYDRATE.md`, `capability-map:v1` marker — one row per verb here;
+checked by `tests/bi_runtime_accept.py`). For code-puppy see also
+`docs/notes/code-puppy-capability-map.md`. The canon does NOT name runtime tools.
 
 ## Changelog
 

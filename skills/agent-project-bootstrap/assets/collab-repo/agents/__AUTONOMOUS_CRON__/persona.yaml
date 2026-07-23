@@ -1,9 +1,15 @@
-# Template — dev archetype (canonical machine truth; AGENT.md is derived from this).
+# Template — autonomous-cron archetype (canonical machine truth; AGENT.md is derived from this).
 # Fill every {{...}} token at scaffold time. Schema: references/persona.schema.md.
 # Capability verbs: references/capability-vocab.v1.md (frozen v1 — never invent verbs).
+#
+# Capability rationale: cron-triggered personas (PM+UAT, scheduled analyst, ...) run a
+# scoped job on a cadence, write their outputs to findings/ and _handoff/, and deliver any
+# code-repo change via PR (write_code + open_pr; branches `<slug>/<topic>`). Drop
+# `write_code`/`open_pr` for report-only personas — a narrower list means more of the
+# contract is whole-tool-enforceable at Tier 3.
 persona: {{PERSONA_NAME}}
 slug: {{PERSONA_SLUG}}
-archetype: dev
+archetype: autonomous-cron
 identity:
   git_name: {{PERSONA_NAME}}
   git_email: {{PERSONA_SLUG}}@{{IDENTITY_DOMAIN}}
@@ -25,7 +31,7 @@ capabilities:
     - edit_other_personas
 scope:
   summary: >-
-    {{PERSONA_SCOPE_SUMMARY}}
+    {{PERSONA_PURPOSE_PARAGRAPH}}
   focus:
     - {{PERSONA_SCOPE_LINE_1}}
     - {{PERSONA_SCOPE_LINE_2}}
@@ -36,7 +42,4 @@ session_ritual:
   - check_handoffs
   - check_backlog
 runtime:
-  trigger: interactive
-  # adapters:                 # optional per-persona adapter overrides (v1.1)
-  #   claude:
-  #     tier: 2               # lock this persona to Tier 2 even if the project default is auto/3
+  trigger: cron

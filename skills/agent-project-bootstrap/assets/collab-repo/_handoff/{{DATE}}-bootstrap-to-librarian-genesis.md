@@ -8,7 +8,7 @@ priority: low
 
 # Librarian — genesis acknowledgment
 
-One-time bootstrap handoff. Created by `agent-project-bootstrap@v0.3.1 mode:collab-repo-project` at scaffold time. After the Librarian processes this once, the standard cycle takes over.
+One-time bootstrap handoff. Created by `agent-project-bootstrap (runtime-agnostic path)` at scaffold time. After the Librarian processes this once, the standard cycle takes over.
 
 ## Why this exists
 

@@ -1,14 +1,11 @@
 # LEARNINGS — agent-project-bootstrap
 
-Lessons from the ADR-001 §10 dogfood. **Phase 1** was the adapter spike (proving one
-`persona.yaml` could hydrate on more than one runtime); **Phase 2** was self-hosting
-validation on this very repo — code-puppy built the runtime-agnostic implementation here
-across PRs #2, #4, and #7.
+Lessons from the ADR-001 §10 dogfood (the v0→v1 story itself lives in ADR-001 + `CHANGELOG.md`).
 
 > **Scope note:** this is the minimum-viable lessons index — enough to anchor the references
 > that cite it. The comprehensive self-hosting outcome notes (which verbs surfaced from
-> observed need, where the spec bent, what was discarded) are tracked separately as a v1.0
-> close-out item in [`STATUS.md`](../STATUS.md) (§10.2).
+> observed need, where the spec bent, what was discarded) are at
+> [`references/v1-self-hosting-notes.md`](../skills/agent-project-bootstrap/references/v1-self-hosting-notes.md).
 
 ## Lessons (`Lx`)
 

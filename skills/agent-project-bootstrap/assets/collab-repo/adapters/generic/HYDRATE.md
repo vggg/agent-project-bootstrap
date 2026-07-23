@@ -30,6 +30,29 @@ loading the spec into your working context and committing to honor it.
 
 ---
 
+## Capability map (v1, normalized)
+
+Tier 1 has no tool allow-list to configure — the runtime hands you everything, and you
+self-enforce. The map below exists so the contract is still explicit (and machine-checkable):
+**Grants** is the runtime-neutral category each verb needs (`read` | `write` | `shell`);
+every **Deny enforcement** at this tier is `instructed`, because nothing is hard-enforced.
+
+<!-- capability-map:v1 — machine-readable; parsed by tests/bi_runtime_accept.py.
+     Keep exactly one row per v1 verb; keep the column order. -->
+
+| Verb | Class | Grants | Runtime tools | Deny enforcement |
+|---|---|---|---|---|
+| `read_code` | whole-tool | read | — (in-prompt; use whatever read tools the runtime offers) | instructed |
+| `read_collab` | whole-tool | read | — | instructed |
+| `write_code` | whole-tool | write | — | instructed |
+| `write_path` | sub-tool | write | — | instructed |
+| `open_pr` | sub-tool | shell | — | instructed |
+| `run_tests` | sub-tool | shell | — | instructed |
+| `merge_pr` | sub-tool | shell | — | instructed |
+| `push_main` | sub-tool | shell | — | instructed |
+| `force_push` | sub-tool | shell | — | instructed |
+| `edit_other_personas` | sub-tool | write | — | instructed |
+
 ## Steps
 
 ### 1. Load the project + persona spec

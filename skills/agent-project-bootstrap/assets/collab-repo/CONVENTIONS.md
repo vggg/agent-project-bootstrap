@@ -8,6 +8,19 @@ Project-wide conventions that apply to every persona on the team. These are the 
 
 ---
 
+## Single-account constraint (first principle)
+
+All personas commit under **one human GitHub account**. GitHub cannot tell personas apart —
+it sees one author, one merger, one reviewer. Two consequences, project-wide (ADR-002 §1):
+
+- **Every gate is enforced by persona capability** (`capabilities.allow`/`deny` in
+  `persona.yaml`), **never by GitHub permissions.** CODEOWNERS, required reviewers, and
+  per-user branch rules enforce nothing here; don't reach for them.
+- **Persona review verdicts are PR comments, not platform approvals** — GitHub blocks
+  approving your own PR, and every persona is "you." See `COORDINATION.md § Review and merge`.
+
+---
+
 ## Repo split
 
 | Repo | Owns | Your access |
@@ -76,6 +89,39 @@ priority: low | medium | high
 **Lifecycle:** receiver reads → acts → sets `status: done`. **Never delete handoff files.** The append-only model preserves coordination history.
 
 **Push policy:** `_handoff/` files (both creation and status-flip) **may be direct-pushed to `main`** — they're coordination metadata, not substantive changes. Substantive changes (code, persona `AGENT.md` edits, `decisions/`, `CONVENTIONS.md`, `COORDINATION.md`, `wiki/` entries authored by the Librarian) require a PR per each persona's working rules. This exception keeps the coordination surface cheap; the PR gate stays on the things that benefit from review.
+
+### Everything material gets a handoff
+
+**If it's material to the project — a finding, a decision, or a correction — it gets a
+`_handoff/`. No exceptions.** A PR description is not a substitute; merging the code is not
+filing the finding. (ADR-002 §2 — the rule exists because findings that lived only in PR
+bodies were missed by the documented handoff scan, one of them a *correction* to an
+already-published finding, and the gap caused a numbering collision.)
+
+What counts as material — if unsure, file one; the cost is a file:
+
+- Any **finding** — every spike, experiment, or measurement. **Honest negatives especially.**
+- Any **decision** that binds future work — including a decision *not* to do something.
+- Any **correction** to an already-recorded finding or decision — the highest-value handoffs
+  in the system and the easiest to skip, because the work already merged.
+
+**Do not self-assign finding/decision numbers.** A number in a PR body is not a claim; only a
+handoff is. Propose a number if you like ("F12 (candidate)") and route it to the Librarian —
+numbering is a single-writer surface precisely so collisions have one place to be resolved.
+The Librarian still sweeps merged PRs as a **backstop** and logs anything found that had no
+handoff; the net catching something means the handoff was missed, not that the net is the
+mechanism.
+
+---
+
+## Machine-local persona state
+
+State a persona needs that must **not** travel with a clone (runtime secrets, tokens,
+per-persona scratch state) lives in a stable per-user directory outside every repo —
+`~/.claude/agent-state/<project>/<persona>/` on Claude Code; the equivalent stable per-user
+location on other runtimes. Never in the clone (it leaks machine specifics and dies on
+re-clone) and never in the runtime's install dir (clobbered on update). Pair with a
+snapshot-restore practice so failover = re-clone + restore state. (ADR-002 §7.)
 
 ---
 

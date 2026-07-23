@@ -1,102 +1,329 @@
-"""Bi-runtime acceptance harness.
+"""Bi-runtime acceptance harness (v1.4 — parses the REAL adapter tables).
 
-Proves the exit criterion: ONE canonical persona.yaml produces EQUIVALENT working personas
-across runtimes AND across the Claude adapter's two tiers:
-  - code-puppy     (Tier 3 — enforced JSON sub-agent tool allow-list)
-  - Claude Tier 2  (CLAUDE.md — capabilities instructed)
-  - Claude Tier 3  (native subagent — enforced `tools:` allow-list)
-'Equivalent' = same identity, same effective capabilities, same guardrails. The artifacts
-differ (JSON vs CLAUDE.md vs subagent .md) but the persona's behavior contract is identical.
+Earlier versions re-implemented the capability→tool mapping in Python and tested that
+re-implementation against itself (tautological). This version parses the actual
+machine-readable capability maps in each adapter's HYDRATE.md (the `capability-map:v1`
+marker) plus the frozen vocabulary table in references/capability-vocab.v1.md, and asserts:
 
-Run: uv run --with pyyaml python tests/bi_runtime_accept.py
+  (a) every verb in capability-vocab.v1.md is mapped in EVERY adapter (no extras, no gaps),
+      and each adapter's Class column matches the vocabulary's enforceability class;
+  (b) the tess and rex fixtures in tests/examples/ hydrate to an EQUIVALENT behavior
+      contract on every adapter, per those parsed tables (identity, granted capability
+      categories, denies, whole-tool denial honoring);
+  (c) enforcement-tier claims are consistent: the generic (Tier 1) adapter claims
+      `instructed` for everything; Tier-3 adapters (claude, code-puppy) claim `enforced`
+      exactly for whole-tool verbs and never for sub-tool verbs.
+
+Editing a HYDRATE.md table incorrectly (dropping a verb, flipping a Grants category,
+overclaiming enforcement) fails this test.
+
+Run: python tests/bi_runtime_accept.py     (stdlib only — no PyYAML needed)
 """
-import sys, yaml
+import os
+import re
+import sys
 
-# ---- canon: the v1 capability vocabulary ----
-V1 = {"read_code","read_collab","write_code","write_path","open_pr","run_tests",
-      "merge_pr","push_main","force_push","edit_other_personas"}
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+SKILL = os.path.join(ROOT, "skills", "agent-project-bootstrap")
+ADAPTERS_DIR = os.path.join(SKILL, "assets", "collab-repo", "adapters")
+VOCAB = os.path.join(SKILL, "references", "capability-vocab.v1.md")
+ADAPTERS = ["claude", "code-puppy", "generic"]
+TIER3_ADAPTERS = {"claude", "code-puppy"}
+MARKER = "capability-map:v1"
+VALID_GRANTS = {"read", "write", "shell"}
+VALID_ENFORCEMENT = {"enforced", "instructed"}
 
-def verbs(items):
+FAILURES = []
+
+
+def fail(msg):
+    FAILURES.append(msg)
+    print(f"  FAIL: {msg}")
+
+
+# ---------------------------------------------------------------------------
+# Minimal YAML subset parser (stdlib-only) — enough for the persona fixtures.
+# Supports: nested maps by indentation, lists of scalars, `- key: [a, b]` items,
+# inline lists, quoted scalars, comments, and `>-` folded block scalars.
+# ---------------------------------------------------------------------------
+def _strip_comment(line):
+    out, in_s, in_d = [], False, False
+    for ch in line:
+        if ch == "'" and not in_d:
+            in_s = not in_s
+        elif ch == '"' and not in_s:
+            in_d = not in_d
+        elif ch == "#" and not in_s and not in_d:
+            break
+        out.append(ch)
+    return "".join(out).rstrip()
+
+
+def _scalar(tok):
+    tok = tok.strip()
+    if tok.startswith('"') and tok.endswith('"') and len(tok) >= 2:
+        return tok[1:-1]
+    if tok.startswith("'") and tok.endswith("'") and len(tok) >= 2:
+        return tok[1:-1]
+    return tok
+
+
+def _parse_value(tok):
+    tok = tok.strip()
+    if tok.startswith("[") and tok.endswith("]"):
+        inner = tok[1:-1].strip()
+        return [_scalar(t) for t in inner.split(",")] if inner else []
+    return _scalar(tok)
+
+
+def parse_simple_yaml(path):
+    with open(path, encoding="utf-8") as f:
+        raw = [ln.rstrip("\n") for ln in f]
+    lines = []
+    for ln in raw:
+        stripped = _strip_comment(ln)
+        if stripped.strip():
+            lines.append(stripped)
+
+    def parse_block(idx, indent):
+        """Parse lines starting at idx with exactly `indent` indentation."""
+        # decide list vs map from the first line
+        first = lines[idx].strip()
+        container = [] if first.startswith("- ") or first == "-" else {}
+        while idx < len(lines):
+            ln = lines[idx]
+            cur = len(ln) - len(ln.lstrip())
+            if cur < indent:
+                break
+            if cur > indent:
+                raise ValueError(f"unexpected indent at {path}: {ln!r}")
+            body = ln.strip()
+            if isinstance(container, list):
+                if not body.startswith("-"):
+                    break
+                item = body[1:].strip()
+                if ":" in item and not item.startswith("["):
+                    k, _, v = item.partition(":")
+                    container.append({_scalar(k): _parse_value(v)})
+                else:
+                    container.append(_parse_value(item))
+                idx += 1
+            else:
+                k, _, v = body.partition(":")
+                k = _scalar(k)
+                v = v.strip()
+                if v == ">-" or v == ">" or v == "|" or v == "|-":
+                    # folded/literal block scalar: consume more-indented lines
+                    idx += 1
+                    parts = []
+                    while idx < len(lines):
+                        nxt = lines[idx]
+                        ni = len(nxt) - len(nxt.lstrip())
+                        if ni <= indent:
+                            break
+                        parts.append(nxt.strip())
+                        idx += 1
+                    container[k] = " ".join(parts)
+                elif v == "":
+                    # nested block
+                    idx += 1
+                    if idx < len(lines):
+                        ni = len(lines[idx]) - len(lines[idx].lstrip())
+                        if ni > indent:
+                            container[k], idx = parse_block(idx, ni)
+                        else:
+                            container[k] = None
+                    else:
+                        container[k] = None
+                else:
+                    container[k] = _parse_value(v)
+                    idx += 1
+        return container, idx
+
+    result, _ = parse_block(0, 0)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Markdown table parsers
+# ---------------------------------------------------------------------------
+def parse_vocab(path):
+    """Return {verb: class} from the frozen-vocabulary table."""
+    verbs = {}
+    with open(path, encoding="utf-8") as f:
+        for ln in f:
+            m = re.match(r"^\|\s*`([a-z_]+)`\s*\|[^|]*\|\s*([^|]+)\|", ln)
+            if m:
+                cls = m.group(2).strip()
+                cls = "whole-tool" if cls.startswith("whole-tool") else (
+                    "sub-tool" if cls.startswith("sub-tool") else cls)
+                verbs[m.group(1)] = cls
+    return verbs
+
+
+def parse_adapter_map(path):
+    """Return {verb: {class, grants, tools, enforcement}} from the capability-map table."""
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    pos = text.find(MARKER)
+    if pos == -1:
+        raise ValueError(f"no {MARKER} marker in {path}")
+    rows = {}
+    for ln in text[pos:].splitlines():
+        m = re.match(r"^\|\s*`([a-z_]+)`\s*\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|", ln)
+        if not m:
+            # stop at first non-table line after we started collecting rows
+            if rows and ln.strip() and not ln.strip().startswith("|"):
+                break
+            continue
+        verb = m.group(1)
+        cls = m.group(2).strip()
+        cls = "whole-tool" if cls.startswith("whole-tool") else (
+            "sub-tool" if cls.startswith("sub-tool") else cls)
+        grants = m.group(3).strip()
+        tools = set(re.findall(r"`([^`]+)`", m.group(4)))
+        enforcement = m.group(5).strip().split()[0] if m.group(5).strip() else ""
+        rows[verb] = {"class": cls, "grants": grants, "tools": tools,
+                      "enforcement": enforcement}
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Fixture hydration via the PARSED tables
+# ---------------------------------------------------------------------------
+def verb_list(items):
+    """Normalize a capabilities list to [(verb, scopes_tuple)]."""
     out = []
     for it in items:
-        out.append((list(it.keys())[0], tuple(list(it.values())[0])) if isinstance(it, dict) else (it, ()))
+        if isinstance(it, dict):
+            (k, v), = it.items()
+            out.append((k, tuple(v) if isinstance(v, list) else (v,)))
+        else:
+            out.append((it, ()))
     return out
 
-def load(path):
-    return yaml.safe_load(open(path))
 
-# ---- adapter A: code-puppy (Tier 3) -> {identity, enforced_tools, denies} ----
-def hydrate_codepuppy(p):
-    allow = verbs(p["capabilities"]["allow"]); deny = verbs(p["capabilities"]["deny"])
-    tools = {"agent_share_your_reasoning"}
-    for v, _ in allow:
-        if v in ("read_code","read_collab"): tools |= {"read_file","list_files","grep"}
-        if v == "write_code": tools |= {"create_file","replace_in_file","delete_snippet"}
-        if v == "write_path": tools |= {"create_file","replace_in_file"}
-        if v in ("open_pr","run_tests"): tools |= {"agent_run_shell_command"}
-    return {
-        "identity": (p["identity"]["git_name"], p["identity"]["commit_prefix"], p["identity"]["routing_label"]),
-        "can_write_files": bool(tools & {"create_file","replace_in_file","delete_snippet"}),
-        "can_run_shell": "agent_run_shell_command" in tools,
-        "denies": {v for v, _ in deny},
-    }
-
-# ---- adapter B: Claude Tier 2 (CLAUDE.md) -> same contract, rendered as instructed prose ----
-def hydrate_claude_tier2(p):
-    allow = verbs(p["capabilities"]["allow"]); deny = verbs(p["capabilities"]["deny"])
-    av = {v for v, _ in allow}
-    return {
-        "identity": (p["identity"]["git_name"], p["identity"]["commit_prefix"], p["identity"]["routing_label"]),
-        "can_write_files": bool(av & {"write_code","write_path"}),
-        "can_run_shell": bool(av & {"open_pr","run_tests"}),
-        "denies": {v for v, _ in deny},
-    }
-
-# ---- adapter B': Claude Tier 3 (native subagent) -> same contract, ENFORCED tool allow-list ----
-# Whole-tool denials are real (tool omitted from `tools:`); sub-tool denials stay instructed.
-def hydrate_claude_tier3(p):
-    allow = verbs(p["capabilities"]["allow"]); deny = verbs(p["capabilities"]["deny"])
+def hydrate(persona, amap):
+    allow = verb_list(persona["capabilities"]["allow"])
+    deny = verb_list(persona["capabilities"]["deny"])
+    grants = {amap[v]["grants"] for v, _ in allow if v in amap}
     tools = set()
     for v, _ in allow:
-        if v in ("read_code","read_collab"): tools |= {"Read","Grep","Glob"}
-        if v == "write_code": tools |= {"Write","Edit"}
-        if v == "write_path": tools |= {"Write","Edit"}
-        if v in ("open_pr","run_tests"): tools |= {"Bash"}
+        if v in amap:
+            tools |= amap[v]["tools"]
+    ident = persona["identity"]
     return {
-        "identity": (p["identity"]["git_name"], p["identity"]["commit_prefix"], p["identity"]["routing_label"]),
-        "can_write_files": bool(tools & {"Write","Edit"}),
-        "can_run_shell": "Bash" in tools,
+        "identity": (ident["git_name"], ident["commit_prefix"], ident["routing_label"]),
+        "grants": grants,
+        "can_write": "write" in grants,
+        "can_shell": "shell" in grants,
         "denies": {v for v, _ in deny},
+        "tools": tools,
+        "allow": {v for v, _ in allow},
     }
 
+
 def main():
-    import os
-    here = os.path.dirname(os.path.abspath(__file__))
-    personas = [os.path.join(here, "examples/tess/persona.yaml"),
-                os.path.join(here, "examples/rex/persona.yaml")]
-    failures = 0
-    for path in personas:
-        p = load(path)
-        # schema sanity: only v1 verbs
-        allv = {v for v, _ in verbs(p["capabilities"]["allow"]) + verbs(p["capabilities"]["deny"])}
-        bad = allv - V1
-        cp = hydrate_codepuppy(p); cl2 = hydrate_claude_tier2(p); cl3 = hydrate_claude_tier3(p)
-        same = (cp == cl2 == cl3)
-        status = "PASS" if same and not bad else "FAIL"
-        if not same or bad: failures += 1
-        print(f"[{status}] {p['persona']:5} ({path.split('/')[-2]})")
-        print(f"        identity      : {cp['identity']}  match={cp['identity']==cl2['identity']==cl3['identity']}")
-        print(f"        can_write     : cp={cp['can_write_files']} claude-t2={cl2['can_write_files']} claude-t3={cl3['can_write_files']} match={cp['can_write_files']==cl2['can_write_files']==cl3['can_write_files']}")
-        print(f"        can_run_shell : cp={cp['can_run_shell']} claude-t2={cl2['can_run_shell']} claude-t3={cl3['can_run_shell']} match={cp['can_run_shell']==cl2['can_run_shell']==cl3['can_run_shell']}")
-        print(f"        denies        : match={cp['denies']==cl2['denies']==cl3['denies']} ({sorted(cp['denies'])})")
-        if bad: print(f"        !! non-v1 verbs: {bad}")
+    vocab = parse_vocab(VOCAB)
+    print(f"vocabulary: {len(vocab)} verbs — {sorted(vocab)}")
+    if len(vocab) != 10:
+        fail(f"expected the frozen 10-verb v1 vocabulary, parsed {len(vocab)}")
+
+    maps = {}
+    for name in ADAPTERS:
+        path = os.path.join(ADAPTERS_DIR, name, "HYDRATE.md")
+        try:
+            maps[name] = parse_adapter_map(path)
+        except ValueError as e:
+            fail(str(e))
+            continue
+
+    # --- (a) coverage + class agreement per adapter ---
+    for name, amap in maps.items():
+        missing = set(vocab) - set(amap)
+        extra = set(amap) - set(vocab)
+        if missing:
+            fail(f"[{name}] verbs missing from capability map: {sorted(missing)}")
+        if extra:
+            fail(f"[{name}] non-v1 verbs in capability map: {sorted(extra)}")
+        for verb, row in amap.items():
+            if verb in vocab and row["class"] != vocab[verb]:
+                fail(f"[{name}] {verb}: class '{row['class']}' != vocab '{vocab[verb]}'")
+            if row["grants"] not in VALID_GRANTS:
+                fail(f"[{name}] {verb}: invalid Grants '{row['grants']}'")
+            if row["enforcement"] not in VALID_ENFORCEMENT:
+                fail(f"[{name}] {verb}: invalid Deny enforcement '{row['enforcement']}'")
+
+    # --- cross-adapter Grants agreement (the runtime-neutral semantic) ---
+    for verb in vocab:
+        cats = {name: maps[name][verb]["grants"]
+                for name in maps if verb in maps[name]}
+        if len(set(cats.values())) > 1:
+            fail(f"Grants for {verb} disagree across adapters: {cats}")
+
+    # --- (c) enforcement-tier consistency ---
+    for name, amap in maps.items():
+        for verb, row in amap.items():
+            if verb not in vocab:
+                continue
+            if name not in TIER3_ADAPTERS:
+                if row["enforcement"] != "instructed":
+                    fail(f"[{name}] Tier-1 adapter claims '{row['enforcement']}' for {verb}"
+                         " (everything at Tier 1 is instructed)")
+            else:
+                expected = "enforced" if vocab[verb] == "whole-tool" else "instructed"
+                if row["enforcement"] != expected:
+                    fail(f"[{name}] {verb}: Deny enforcement '{row['enforcement']}' but the"
+                         f" {vocab[verb]} class implies '{expected}'")
+        # Tier-3 adapters must name real tools; generic must not
+        for verb, row in amap.items():
+            if name in TIER3_ADAPTERS and not row["tools"]:
+                fail(f"[{name}] {verb}: no runtime tools listed for a Tier-3 adapter")
+            if name not in TIER3_ADAPTERS and row["tools"]:
+                fail(f"[{name}] {verb}: Tier-1 adapter should not bind runtime tools")
+
+    # --- (b) fixtures hydrate consistently across adapters ---
+    for slug in ("tess", "rex"):
+        path = os.path.join(HERE, "examples", slug, "persona.yaml")
+        persona = parse_simple_yaml(path)
+        used = {v for v, _ in verb_list(persona["capabilities"]["allow"])
+                } | {v for v, _ in verb_list(persona["capabilities"]["deny"])}
+        bad = used - set(vocab)
+        if bad:
+            fail(f"[{slug}] fixture uses non-v1 verbs: {sorted(bad)}")
+
+        contracts = {name: hydrate(persona, maps[name]) for name in maps}
+        ref_name = ADAPTERS[0]
+        ref = contracts[ref_name]
+        print(f"\n[{slug}] identity={ref['identity']} grants={sorted(ref['grants'])} "
+              f"denies={sorted(ref['denies'])}")
+        for name, c in contracts.items():
+            for key in ("identity", "grants", "can_write", "can_shell", "denies"):
+                if c[key] != ref[key]:
+                    fail(f"[{slug}] {key} diverges: {ref_name}={ref[key]!r} vs {name}={c[key]!r}")
+            # whole-tool denial honoring on Tier-3 adapters: if a denied verb's granted
+            # category is not needed by ANY allowed verb, its tools must be absent.
+            if name in TIER3_ADAPTERS:
+                for verb in c["denies"]:
+                    row = maps[name].get(verb)
+                    if row and vocab.get(verb) == "whole-tool" and row["grants"] not in c["grants"]:
+                        leaked = row["tools"] & c["tools"]
+                        if leaked:
+                            fail(f"[{slug}] [{name}] whole-tool denial of {verb} leaks tools"
+                                 f" {sorted(leaked)}")
+            print(f"        {name:10} can_write={c['can_write']} can_shell={c['can_shell']}"
+                  f" tools={len(c['tools'])}")
+
     print()
-    if failures:
-        print(f"ACCEPTANCE FAILED ({failures} persona(s) diverge across runtimes/tiers)")
+    if FAILURES:
+        print(f"BI-RUNTIME ACCEPTANCE: FAIL ({len(FAILURES)} failure(s))")
         sys.exit(1)
     print("BI-RUNTIME ACCEPTANCE: PASS")
-    print("One persona.yaml -> equivalent behavior contract on code-puppy (Tier3),")
-    print("Claude Tier 2 (CLAUDE.md) AND Claude Tier 3 (enforced subagent).")
+    print("Every v1 verb is mapped in every adapter; fixtures hydrate to an equivalent")
+    print("behavior contract on claude, code-puppy, and generic; enforcement claims are")
+    print("consistent with the frozen vocabulary's enforceability classes.")
+
 
 if __name__ == "__main__":
     main()

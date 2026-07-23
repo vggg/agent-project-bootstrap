@@ -1,47 +1,30 @@
 # agent-project-bootstrap
 
-Scaffolds a multi-agent project setup from templates. **As of v1.0 the pattern is
-runtime-agnostic** (per [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md)):
+Scaffolds a multi-agent project setup from templates. The pattern is **runtime-agnostic**
+(per [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md)):
 a single runtime-neutral `persona.yaml` hydrates working personas on whatever AI coding agent
 you run — Claude Code, code-puppy, or anything else — at the highest fidelity that runtime
 supports. It started as a Claude Code plugin and remains fully compatible with it.
 
-**As of v1.2 this repo ships a sister skill, [`multi-agent-audit`](skills/multi-agent-audit/),** for **grading** multi-agent projects with evidence — INTERVENTION TAX, dual-lens drift, operational fidelity — instead of vibes. Read-only by construction. **v1.3 (2026-06-12)** closed 13 self-review findings from the first real audit + added a timeline view of important events. See [Sister skill](#sister-skill-multi-agent-audit).
+**This repo also ships a sister skill, [`multi-agent-audit`](skills/multi-agent-audit/),** for **grading** multi-agent projects with evidence — INTERVENTION TAX, dual-lens drift, operational fidelity — instead of vibes. Read-only by construction. See [Sister skill](#sister-skill-multi-agent-audit).
 
-Three project modes are available:
+**One front door:** every new project (and every joiner) routes through
+`skills/agent-project-bootstrap/assets/collab-repo/START.md`, which routes by directory state —
+new/empty directory → `ORCHESTRATE.md` (set up a project), existing collab repo →
+`PARTICIPATE.md` (join it). No modes to pick.
 
-- **`vault-project`** — the original lean pattern. Vault-based five-agent project (librarian + two devs + analyst + designer), suitable for solo / local-team work where all collaborators share the same personal vault.
-- **`collab-repo-project`** — the **Option A** pattern. Emits a dedicated collab repo per project (CONVENTIONS, COORDINATION, agent manuals, handoffs, decisions, project wiki) separable from any personal vault. Designed for projects with multiple **remote** collaborators who shouldn't have access to each other's personal substrate.
-- **`join-collab-project`** — walks a new human collaborator through joining an existing collab repo: clone, claim a persona, set git identity, validate with a "hello" PR.
-
-All emitted files use `{{placeholder}}` tokens you fill once; nothing is hardcoded to a specific project.
-
-## Two generations — which path to use
-
-This repo currently contains **two** scaffolding flows. Knowing which you're on avoids confusion:
-
-- **Runtime-agnostic path (v1.0+, current direction).** Driven by the neutral entrypoints
-  `START.md → ORCHESTRATE.md` (set up) / `PARTICIPATE.md` (join), a machine-readable
-  `manifest.yaml` + `persona.yaml` per persona, and per-runtime **adapters**. This is what runs
-  on **both** Claude Code and code-puppy (see [Runtime support](#runtime-support-v10-runtime-agnostic)
-  and [`USING-WITH-CODE-PUPPY.md`](USING-WITH-CODE-PUPPY.md)). The `collab-repo-project` mode below
-  is the flow this path generalizes — **for a new multi-runtime or remote-collab project, prefer the
-  runtime-agnostic path.**
-- **Legacy emit modes (v0.3.x).** The three `{{placeholder}}`-template modes below
-  (`vault-project`, `collab-repo-project`, `join-collab-project`) are the original Claude-Code-only
-  flows. `vault-project` and `join-collab-project` have **not** yet been ported to the
-  runtime-agnostic architecture (tracked in [`STATUS.md`](STATUS.md)); they still emit the
-  `AGENT.md`-template world rather than `persona.yaml` + adapters.
-
-If you only run Claude Code and want the simplest thing, the legacy modes still work. If you run
-code-puppy (or want enforced Tier-3 guardrails, or multiple runtimes), use the runtime-agnostic path.
+> **Migration note:** this repo previously carried two generations of scaffolding flows. The
+> pre-v1.0 Claude-Code-only emit modes are deprecated and quarantined in [`legacy/`](legacy/)
+> (existing v0.x projects only). The full v0→v1 story lives in
+> [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
 ## When it's useful
 
-- You're running multiple Claude Code sessions in parallel on the same long-lived project
+- You're running multiple agent sessions in parallel on the same long-lived project
 - You want a knowledge layer (research findings, decisions, reconciliation log) that lives separate from the codebase
 - You're a solo or near-solo developer who coordinates with several specialist agents rather than a human team
-- You've used multi-agent Claude Code before and want a repeatable starting point instead of rebuilding config files from scratch each time
+- You've used multi-agent setups before and want a repeatable starting point instead of rebuilding config files from scratch each time
+- Your collaborators run **different** runtimes (Claude Code at home, code-puppy at work, ...) and you need one persona spec that works on all of them
 
 ## When it's overkill
 
@@ -51,68 +34,38 @@ code-puppy (or want enforced Tier-3 guardrails, or multiple runtimes), use the r
 
 ## What gets generated
 
-### `vault-project` mode
+A dedicated **collab repo** (the coordination substrate, separable from your code repo):
 
-**Vault structure** (Obsidian, git-tracked):
-```
-_meta/
-  CONVENTIONS.md          # tool hierarchy + wikilinks rules
-  PERSONAS/
-    IRIS.md               # librarian role definition
-    DAVE.md               # dev agent 1
-    KRIS.md               # dev agent 2 (optional)
-    VERA.md               # analyst
-    IVY.md                # designer
-CLAUDE.md                 # Iris session guide
-projects/<project>/
-  CLAUDE.md               # project brief (open threads, key decisions)
-  COORDINATION.md         # cross-agent protocol (handoffs, ADRs, dev log, branching)
-```
-
-**Workspace files** (one per agent, checked into their respective repos or directories):
-```
-workspaces/
-  dev/CLAUDE.md           # engineering guide (used by both dev agents)
-  analyst/CLAUDE.md       # analyst session guide
-  designer/CLAUDE.md      # designer session guide
-```
-
-### `collab-repo-project` mode (new in v0.3.0)
-
-**Collab repo structure** (a dedicated GitHub repo, separate from your code repo):
 ```
 README.md                 # project overview
-CONVENTIONS.md            # repo-wide rules (identity, labels, routing, tool hierarchy)
-COORDINATION.md           # multi-persona protocol + Hot files section
-CLAUDE.md                 # entry pointer for any Claude Code session
-BOOTSTRAP.md              # collaborator-facing onboarding
-BOOTSTRAP-ADMIN.md        # owner-only operations (optional trust-gating runbook)
+CONVENTIONS.md            # repo-wide rules (single-account constraint, identity, labels,
+                          #   routing, handoff lifecycle, machine-local state)
+COORDINATION.md           # multi-persona protocol (hot files + lock mechanics, review/merge,
+                          #   ADR rules, ticket lifecycle)
+manifest.yaml             # machine-readable project spec (repos, backlog, roster)
+canon/                    # the runtime-neutral spec, copied in so joiners can resolve it
+adapters/                 # per-runtime HYDRATE.md (claude / code-puppy / generic)
 agents/
   <persona-slug>/
-    AGENT.md              # per-persona operating manual
-  librarian/
-    AGENT.md              # always emitted by default
-    FAILOVER.md           # centralized-with-failover runbook
-_handoff/                 # cross-persona async messages
-decisions/                # project-level decisions + ADR pointer stubs
-findings/                 # investigations, dev logs, UAT, research
+    persona.yaml          # CANONICAL machine truth: identity, capabilities, scope, ritual
+    AGENT.md              # human-readable manual, derived from the yaml
+_handoff/                 # cross-persona async messages (append-only)
+decisions/  findings/     # project decisions + investigation outputs
 wiki/                     # synthesised by the Librarian
 ```
 
-Three persona archetypes are supported, distinguished by runtime:
-- **dev** — human-triggered Claude Code sessions on the collaborator's machine
-- **autonomous-event** — GitHub Actions on a webhook (e.g. PR Reviewer, Backtest Runner)
-- **autonomous-cron** — `/schedule` skill on someone's machine (e.g. PM+UAT, Librarian)
+Persona archetype templates shipped (each `persona.yaml` + `AGENT.md`):
 
-### Slash commands (both modes)
+- **dev** — interactive persona, one per human collaborator
+- **librarian** — wiki + indexes + drift checks; always present
+- **autonomous-event** — webhook-triggered (e.g. PR checks, backtest runner)
+- **autonomous-cron** — scheduled (e.g. PM+UAT)
+- **reviewer / merger** *(optional, [ADR-002](docs/adr/ADR-002-ways-of-working-2026-07.md))* — adversarial SHA-bound PR review + a merge gate that isn't the human owner
 
-**Slash commands** (installed globally, available to every Claude Code session):
-```
-commands/
-  vc.md                   # `/vc` — vault commit workflow with agent-prefix convention
-```
+Plus the `/vc` slash-command template (`assets/commands/vc.md`) for the canonical
+`<persona>: <op> | <description>` commit workflow.
 
-## Runtime support (v1.0, runtime-agnostic)
+## Runtime support (runtime-agnostic core)
 
 Personas are defined once in a runtime-neutral `persona.yaml` (identity, abstract
 *capabilities*, scope, session ritual). Each runtime maps those abstract capabilities onto its
@@ -124,25 +77,27 @@ and degrades gracefully:
 
 | Tier | Runtime | Mechanism | Enforcement |
 |---|---|---|---|
-| 3 | **Claude Code (v1.1)** or code-puppy | native sub-agents (Claude `.claude/agents/<slug>.md`; code-puppy JSON agents) | capabilities enforced via a tool allow-list — **whole-tool denials are real** (a read-only persona genuinely cannot write/run shell); sub-tool denials instructed |
+| 3 | Claude Code or code-puppy | native sub-agents (Claude `.claude/agents/<slug>.md`; code-puppy JSON agents) | capabilities enforced via a tool allow-list — **whole-tool denials are real** (a read-only persona genuinely cannot write/run shell); sub-tool denials instructed |
 | 2 | Claude Code | persistent `CLAUDE.md` | persistent session context; capabilities instructed |
 | 1 | anything | in-prompt | persona re-read each turn; self-enforced |
 
-> **New in v1.1:** the Claude adapter renders **either** Tier 2 (`CLAUDE.md`) **or** Tier 3
-> (a native subagent with an enforced tool allow-list), selected by a runtime-neutral
-> `adapters.claude.tier` config (`auto` | `2` | `3`, default `auto`; `auto` uses Tier 3 when the
-> session can host subagents and falls back to Tier 2 otherwise). So enforced guardrails are no
-> longer code-puppy-only.
+The Claude adapter renders **either** Tier 2 **or** Tier 3, selected by a runtime-neutral
+`adapters.claude.tier` config (`auto` | `2` | `3`, default `auto`).
 
 Key files:
 
 - `START.md` / `ORCHESTRATE.md` / `PARTICIPATE.md` — neutral entrypoints (front door + the two
   role recipes; routing is by directory state, not a human choice).
 - `adapters/{generic,code-puppy,claude}/HYDRATE.md` — per-runtime mappings (`generic` is the
-  mandatory Tier-1 fallback).
+  mandatory Tier-1 fallback). Each carries a normalized, machine-readable capability map that
+  `tests/bi_runtime_accept.py` checks in CI.
 - `references/{capability-vocab.v1,persona.schema,manifest.schema}.md` — the canonical spec.
+- `assets/collab-repo/manifest.example.yaml` — a realistic worked example of the project spec.
 
-See [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for the full design.
+See [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for the full design
+and [ADR-002](docs/adr/ADR-002-ways-of-working-2026-07.md) for the field-proven July-2026
+coordination rules baked into the templates (single-account constraint, everything-material-
+gets-a-handoff, lock-via-open-PR + CI guard, reviewer/merger personas).
 
 ## Sister skill — `multi-agent-audit`
 
@@ -176,26 +131,30 @@ Full workflow: Discovery → Agent Inventory + DUAL-LENS drift pass → Metrics 
 
 ## Usage
 
-After installation, tell Claude something like:
+After installation, tell your agent something like:
 
-> "Use the agent-project-bootstrap skill to set up a new project in `collab-repo-project` mode."
+> "Use the agent-project-bootstrap skill to set up a new multi-agent project."
 
-Claude will ask for the inputs the mode needs (project name, repos, personas, etc.) and emit all files with placeholders substituted. Each mode is self-contained — `SKILL.md` has a section per mode you can read independently.
-
-**Choosing a mode:**
-- Use `vault-project` if you're the only operator (or all collaborators share your vault) and want the simplest setup.
-- Use `collab-repo-project` if multiple remote collaborators need to see each other's work and you want trust isolation between them and your personal substrate.
-- Use `join-collab-project` if you're a new collaborator joining a project someone else set up.
+The skill routes through `START.md`: in a new/empty directory it follows `ORCHESTRATE.md`
+(interviews you for project name, repos, backlog source, persona roster; authors
+`manifest.yaml`; hydrates each persona via your runtime's adapter). In an existing collab
+repo it follows `PARTICIPATE.md` (claim a persona, hydrate yourself, run the session ritual).
 
 ## Customisation
 
-The templates use archetype names for agents (Iris, Dave, Kris, Vera, Ivy). These are just names — rename them to whatever fits your working style. The structural patterns (three-tier write ownership, handoff protocol, COORDINATION.md as single source for cross-agent rules) are what carry the value, not the names themselves.
+The archetype templates use `{{PLACEHOLDER}}` tokens for names, scopes, and identity — name
+your personas whatever fits your working style. The structural patterns (three-tier write
+ownership, capability allow/deny per persona, handoff protocol, COORDINATION.md as single
+source for cross-agent rules) are what carry the value, not the names.
 
-The dev-2 slot (Kris) is explicitly optional. Single-developer projects skip it.
+The reviewer/merger module and the CI lock guard are opt-in — small teams without contested
+seams may not need them.
 
 ## Acknowledgements
 
-This skill codifies a multi-agent coordination pattern developed through real iteration on a software project. The goal is to make the setup repeatable without requiring each new project to rediscover the same structural decisions.
+This skill codifies a multi-agent coordination pattern developed through real iteration on
+several software projects. The goal is to make the setup repeatable without requiring each
+new project to rediscover the same structural decisions.
 
 ---
 

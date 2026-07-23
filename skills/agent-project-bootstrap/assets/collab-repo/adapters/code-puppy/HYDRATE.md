@@ -54,19 +54,36 @@ code-puppy enforces capabilities through the agent JSON's `tools` **list**.
 
 ---
 
-## Capability → tool mapping (code-puppy, snake_case)
+## Capability map (v1, normalized)
 
 Translate `persona.yaml` `capabilities.allow` into the **minimal** `tools` list. Include a
-tool only if at least one allowed verb needs it.
+tool only if at least one allowed verb needs it. One row per verb of the frozen v1 vocabulary
+(`canon/capability-vocab.v1.md`); **Grants** is the runtime-neutral category the verb needs
+(`read` | `write` | `shell`); **Deny enforcement** is what a *denial* of the verb gets on this
+runtime. Every persona additionally gets `agent_share_your_reasoning` (narration; harmless,
+recommended — not tied to a verb).
 
-| Abstract verb (v1) | Adds to `tools` |
-|---|---|
-| `read_code`, `read_collab` | `read_file`, `list_files`, `grep` |
-| `write_code` | `create_file`, `replace_in_file`, `delete_snippet` |
-| `write_path: [..]` | `create_file`, `replace_in_file` (path scopes go in the persona body as instructions) |
-| `open_pr`, `run_tests` | `agent_run_shell_command` |
-| *(every persona)* | `agent_share_your_reasoning` (narration; harmless, recommended) |
+<!-- capability-map:v1 — machine-readable; parsed by tests/bi_runtime_accept.py.
+     Keep exactly one row per v1 verb; keep the column order. -->
 
+| Verb | Class | Grants | Runtime tools | Deny enforcement |
+|---|---|---|---|---|
+| `read_code` | whole-tool | read | `read_file`, `list_files`, `grep` | enforced |
+| `read_collab` | whole-tool | read | `read_file`, `list_files`, `grep` | enforced |
+| `write_code` | whole-tool | write | `create_file`, `replace_in_file`, `delete_snippet` | enforced |
+| `write_path` | sub-tool | write | `create_file`, `replace_in_file` | instructed |
+| `open_pr` | sub-tool | shell | `agent_run_shell_command` | instructed |
+| `run_tests` | sub-tool | shell | `agent_run_shell_command` | instructed |
+| `merge_pr` | sub-tool | shell | `agent_run_shell_command` | instructed |
+| `push_main` | sub-tool | shell | `agent_run_shell_command` | instructed |
+| `force_push` | sub-tool | shell | `agent_run_shell_command` | instructed |
+| `edit_other_personas` | sub-tool | write | `create_file`, `replace_in_file` | instructed |
+
+> "Deny enforcement: enforced" is only real when NO allowed verb grants the same category —
+> whole-tool enforcement works by omitting the tool entirely. Denying `write_code` while
+> allowing `write_path` leaves the write tools granted, so that denial degrades to
+> instructed. Same honesty boundary as the enforcement table above.
+>
 > v1 note: path-scoped writes are the parametric `write_path: [findings, _handoff, ...]` verb
 > (replaces v0's `write_findings`/`write_handoff`). The allowed scopes are rendered into the
 > persona body; denied scopes (e.g. `write_path: [wiki]`) become "what never happens" lines.
@@ -199,26 +216,26 @@ description: Stage, commit, and push <Persona>'s changes using prefix "<commit_p
 
 ---
 
-## Worked example — `tess` (test-coverage dev) [VERIFIED LIVE]
+## Worked example — the `tess` acceptance fixture (test-coverage dev) [VERIFIED LIVE]
 
-Input: `agents/tess/persona.yaml` (allow: read_code, write_code, read_collab,
-write_findings, write_handoff, open_pr, run_tests).
+Input: the dev fixture at `tests/examples/tess/persona.yaml` in the skill repo (allow:
+read_code, read_collab, write_code, `write_path: [findings, _handoff]`, open_pr, run_tests).
 
 Computed `tools` =
 `["read_file","list_files","grep","create_file","replace_in_file","delete_snippet","agent_run_shell_command","agent_share_your_reasoning"]`
 (read_* → read_file/list_files/grep; write_* → create_file/replace_in_file/delete_snippet;
 open_pr/run_tests → agent_run_shell_command; + narration).
 
-Whole-tool denials: none possible — Tess needs shell + write, so merge_pr/push_main/etc. are
-rendered as `system_prompt` instructions. (Dev personas gain the LEAST Tier enforcement; a
+Whole-tool denials: none possible — the fixture needs shell + write, so merge_pr/push_main/etc.
+are rendered as `system_prompt` instructions. (Dev personas gain the LEAST Tier enforcement; a
 read-only Librarian gains the MOST.)
 
 Output files:
 - `{code_repo_root}/.code_puppy/agents/tess.json`
 - `{code_repo_root}/.agents/commands/vc-tess.md`
 
-**Proven:** dropped into `.code_puppy/agents/`, `list_agents` showed
-`Tess 🧪 (test-coverage dev)`; `invoke_agent` had her recite identity + all guardrails.
+**Proven:** dropped into `.code_puppy/agents/`, `list_agents` showed the persona
+(`test-coverage dev`); `invoke_agent` had it recite identity + all guardrails.
 
 ---
 

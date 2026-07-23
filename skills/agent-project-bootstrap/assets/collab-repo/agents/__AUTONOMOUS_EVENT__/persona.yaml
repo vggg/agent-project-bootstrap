@@ -1,9 +1,15 @@
-# Template — dev archetype (canonical machine truth; AGENT.md is derived from this).
+# Template — autonomous-event archetype (canonical machine truth; AGENT.md is derived from this).
 # Fill every {{...}} token at scaffold time. Schema: references/persona.schema.md.
 # Capability verbs: references/capability-vocab.v1.md (frozen v1 — never invent verbs).
+#
+# Capability rationale: event-triggered personas (PR reviewer, backtest runner, ...) run in
+# an ephemeral runner on a webhook. They read both repos, may run the test/coverage suite
+# against the triggering ref, and report via _handoff/ (their verdict/report surface). They
+# never mutate code and never merge — output is comments/checks/handoffs, not commits.
+# Widen `write_path` (e.g. add findings) per persona only with observed need.
 persona: {{PERSONA_NAME}}
 slug: {{PERSONA_SLUG}}
-archetype: dev
+archetype: autonomous-event
 identity:
   git_name: {{PERSONA_NAME}}
   git_email: {{PERSONA_SLUG}}@{{IDENTITY_DOMAIN}}
@@ -13,30 +19,25 @@ capabilities:
   allow:
     - read_code
     - read_collab
-    - write_code
-    - write_path: [findings, _handoff]
-    - open_pr
     - run_tests
+    - write_path: [_handoff]
   deny:
+    - write_code
     - write_path: [wiki]
+    - open_pr
     - merge_pr
     - push_main
     - force_push
     - edit_other_personas
 scope:
   summary: >-
-    {{PERSONA_SCOPE_SUMMARY}}
+    {{PERSONA_PURPOSE_PARAGRAPH}}
   focus:
     - {{PERSONA_SCOPE_LINE_1}}
     - {{PERSONA_SCOPE_LINE_2}}
     - {{PERSONA_SCOPE_LINE_3}}
 session_ritual:
-  - sync_repos
   - read_conventions
   - check_handoffs
-  - check_backlog
 runtime:
-  trigger: interactive
-  # adapters:                 # optional per-persona adapter overrides (v1.1)
-  #   claude:
-  #     tier: 2               # lock this persona to Tier 2 even if the project default is auto/3
+  trigger: event

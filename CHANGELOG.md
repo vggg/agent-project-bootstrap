@@ -6,6 +6,86 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-07-22
+
+The credibility-debt release: one front door, honest artifacts, real tests, and the
+field-proven July-2026 ways-of-working (ADR-002).
+
+### Changed — one front door (legacy path quarantined)
+
+- **`SKILL.md` rewritten as a thin front door** (frontmatter bumped `1.1.0 → 1.4.0`, gains a
+  `description:` for skill discovery). All new-project creation and joining routes through
+  `assets/collab-repo/START.md` → `ORCHESTRATE.md` / `PARTICIPATE.md`; the legacy modes are a
+  one-line pointer.
+- **Legacy v0.3 path moved to `legacy/`** at the repo root: `legacy/vault/`,
+  `legacy/workspaces/` (the template trees only the legacy modes consume) and
+  `legacy/SKILL-v0.3.md` (the three-mode emit instructions, verbatim). `legacy/README.md`
+  marks it deprecated/unmaintained, kept for existing v0.x projects.
+- **`.claude-plugin/plugin.json`** `1.3.0 → 1.4.0`; description reflects the one-front-door +
+  legacy-quarantine reality. Version sync with `SKILL.md` is now lint-enforced.
+- **Doc dedup:** the v0→v1 migration story now lives ONLY in ADR-001 + this changelog;
+  `README.md`, `SKILL.md`, `CLAUDE.md`, `STATUS.md`, and `docs/LEARNINGS.md` trimmed to
+  one-line pointers. `CLAUDE.md`/`STATUS.md` no longer claim "v1.0 shipped / v1.1 candidates"
+  as the current state.
+
+### Added — missing/broken artifacts fixed
+
+- **`assets/collab-repo/manifest.example.yaml`** — realistic worked example of the
+  `manifest.schema.md` contract (two interactive dev personas + librarian, two-repo pattern).
+- **`agents/__DEV__/persona.yaml` is a real template** — was a verbatim copy of the
+  `tests/examples/tess` fixture (hardcoded `persona: Tess`); now uses the same
+  `{{PLACEHOLDER}}` tokens as its sibling `AGENT.md`.
+- **Archetype parity (closes an ADR-001 §10.8 deferred item):** `persona.yaml` templates for
+  `librarian`, `__AUTONOMOUS_EVENT__`, and `__AUTONOMOUS_CRON__` alongside their `AGENT.md`s,
+  capability sets drawn from the frozen v1 vocabulary. `persona.schema.md`'s "these archetypes
+  only exist as legacy AGENT.md templates" caveat replaced with the supported-archetype table.
+- **`docs/notes/CORRECTION-wibey-vs-codepuppy.md`** and **`docs/notes/code-puppy-capability-map.md`**
+  — reconstructed stubs (originals were cited by `capability-vocab.v1.md` and the code-puppy
+  adapter since v1.0 but never committed; marked as reconstructed).
+
+### Added — July-2026 ways-of-working (ADR-002; field-proven on badminton-analyzer)
+
+- **`docs/adr/ADR-002-ways-of-working-2026-07.md`** (accepted 2026-07-22) — decisions + evidence.
+- **Emitted `CONVENTIONS.md`:** single-GitHub-account constraint as a stated first principle
+  (every gate enforced by persona capability, never GitHub perms); "everything material gets
+  a handoff" (findings, decisions, corrections; numbers are proposed to the Librarian, never
+  self-assigned); machine-local persona-state convention (`~/.claude/agent-state/` analog +
+  snapshot-restore).
+- **Emitted `COORDINATION.md`:** Lock pattern is now lock-via-open-PR + `lock:*` labels + a CI
+  guard (CODEOWNERS explicitly rejected — no enforcement without branch protection); Owner
+  pattern is an evidence gate; new "Review and merge" section (SHA-bound Reviewer verdicts,
+  Merger preconditions); persona.yaml CI validation documented.
+- **Reviewer + Merger persona archetype templates** (`agents/__REVIEWER__/`,
+  `agents/__MERGER__/`, each `persona.yaml` + `AGENT.md`): adversarial fresh-context reviewer
+  publishing SHA-bound verdict comments; merger holding the project's only `merge_pr` as a
+  precondition gate.
+- **Librarian template corrections** (ADR-002 §6): `open_pr` allowed; event-triggered
+  reconcile preferred with cron as backstop.
+
+### Changed — real tests + CI
+
+- **Adapters carry a normalized machine-readable capability map** (`capability-map:v1` marker
+  in each `adapters/*/HYDRATE.md`): one row per frozen v1 verb — class, runtime-neutral
+  grants category, runtime tools, deny-enforcement claim. The claude/code-puppy maps also gain
+  rows for `merge_pr`/`push_main`/`force_push`/`edit_other_personas` (needed now that merger
+  and librarian archetypes can ALLOW them).
+- **`tests/bi_runtime_accept.py` rewritten** — it previously re-implemented the
+  capability→tool mapping in Python and tested itself (tautological). It now PARSES the
+  actual HYDRATE.md tables + `capability-vocab.v1.md` and asserts: every v1 verb mapped in
+  every adapter; tess/rex fixtures hydrate to an equivalent contract across adapters
+  (identity, grants, denies, whole-tool denial honoring); enforcement-tier claims consistent
+  (generic all-instructed; Tier-3 adapters enforced exactly for whole-tool verbs). Now
+  stdlib-only (no PyYAML).
+- **`tests/lint_repo.py` (new, stdlib):** unfilled `{{placeholder}}` tokens outside template
+  dirs; dead relative markdown links repo-wide; fixture-name leaks ("Tess"/"Rex") in shipped
+  templates; plugin.json ↔ SKILL.md version sync.
+- **`.github/workflows/ci.yml` (new):** runs both tests with plain python on push + PR.
+- **code-puppy adapter worked example** re-anchored to the `tests/examples/tess` fixture and
+  de-named (fixture display names no longer appear in shipped templates); its stale v0 verb
+  list (`write_findings`/`write_handoff`) corrected to the v1 `write_path` form.
+- **`CLAUDE.md` / `CONTRIBUTING.md`** test instructions updated (`uv run --with pyyaml` no
+  longer needed).
+
 ## [1.3.0] — 2026-06-12
 
 The first-real-audit-feedback release. v1.2.0 shipped the `multi-agent-audit` skill and Iris ran it against GardenTwin within hours; the audit's own write-up identified 13 substantive failures + a missing timeline feature. v1.3 closes all 13 and adds the timeline. Self-validating loop completed in <24h.

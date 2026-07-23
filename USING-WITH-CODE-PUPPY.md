@@ -22,7 +22,7 @@ cd <your-collab-repo>          # start code-puppy FROM the project root (see Why
 Then tell code-puppy:
 
 > Read these files from the cloned repo, in order, then follow them to bootstrap a new
-> `collab-repo-project`:
+> collab project:
 > 1. `agent-project-bootstrap/skills/agent-project-bootstrap/assets/collab-repo/START.md`
 > 2. `agent-project-bootstrap/skills/agent-project-bootstrap/assets/collab-repo/ORCHESTRATE.md`
 > 3. `agent-project-bootstrap/skills/agent-project-bootstrap/assets/collab-repo/adapters/code-puppy/HYDRATE.md`

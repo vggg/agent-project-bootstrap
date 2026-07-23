@@ -60,21 +60,38 @@ guardrails still add real value, but say honestly what is enforced vs. instructe
 
 ---
 
-## Capability → Claude tool mapping (Tier 3 enforced layer)
+## Capability map (v1, normalized)
 
 Claude tool names are PascalCase. Build the **minimal** `tools` allow-list — include a tool
-only if at least one allowed verb needs it.
+only if at least one allowed verb needs it. One row per verb of the frozen v1 vocabulary
+(`canon/capability-vocab.v1.md`); **Grants** is the runtime-neutral category the verb needs
+(`read` | `write` | `shell`); **Deny enforcement** is what a *denial* of the verb gets at this
+adapter's highest tier (Tier 3 — at Tier 2 everything is instructed).
 
-| Abstract verb (v1) | Adds to `tools` |
-|---|---|
-| `read_code`, `read_collab` | `Read`, `Grep`, `Glob` |
-| `write_code` | `Write`, `Edit` |
-| `write_path: [..]` | `Write`, `Edit` (allowed path scopes → instructions in the body) |
-| `open_pr`, `run_tests` | `Bash` |
+<!-- capability-map:v1 — machine-readable; parsed by tests/bi_runtime_accept.py.
+     Keep exactly one row per v1 verb; keep the column order. -->
+
+| Verb | Class | Grants | Runtime tools | Deny enforcement |
+|---|---|---|---|---|
+| `read_code` | whole-tool | read | `Read`, `Grep`, `Glob` | enforced |
+| `read_collab` | whole-tool | read | `Read`, `Grep`, `Glob` | enforced |
+| `write_code` | whole-tool | write | `Write`, `Edit` | enforced |
+| `write_path` | sub-tool | write | `Write`, `Edit` | instructed |
+| `open_pr` | sub-tool | shell | `Bash` | instructed |
+| `run_tests` | sub-tool | shell | `Bash` | instructed |
+| `merge_pr` | sub-tool | shell | `Bash` | instructed |
+| `push_main` | sub-tool | shell | `Bash` | instructed |
+| `force_push` | sub-tool | shell | `Bash` | instructed |
+| `edit_other_personas` | sub-tool | write | `Write`, `Edit` | instructed |
+
+> "Deny enforcement: enforced" is only real when NO allowed verb grants the same category —
+> whole-tool enforcement works by omitting the tool entirely. Denying `write_code` while
+> allowing `write_path` leaves `Write`/`Edit` granted, so that denial degrades to instructed
+> (rendered in the body). This is the honesty boundary; do not oversell it.
 
 **Whole-tool denials:** if NO allowed verb needs a tool, it MUST be absent — the runtime
-hard-denies it. A read-only persona (e.g. a reviewer/librarian with no
-`write_*`/`open_pr`/`run_tests` verbs) gets `tools: Read, Grep, Glob` — `Write`/`Edit`/`Bash`
+hard-denies it. A read-only persona (e.g. a reviewer/librarian variant with no
+write/shell-granting verbs allowed) gets `tools: Read, Grep, Glob` — `Write`/`Edit`/`Bash`
 are absent and genuinely unavailable.
 
 **Sub-tool denials** (`merge_pr`, `push_main`, `force_push`, denied `write_path` scopes,

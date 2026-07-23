@@ -2,13 +2,13 @@
 
 ## What this repo is
 
-The **canonical home** for the `agent-project-bootstrap` skill. As of ADR-001 acceptance (2026-05-30) and the v1.0.0 release (2026-06-03), this repo is also the active **development surface** — the runtime-agnostic spec, adapters, references, tests, and meta-docs all live and evolve here.
+The **canonical home** for the `agent-project-bootstrap` skill and its sister skill `multi-agent-audit` — the runtime-agnostic spec, adapters, references, tests, and meta-docs all live and evolve here.
 
-Current state: v1.0 shipped. Track `STATUS.md` for v1.0 close-out items and v1.1 candidates.
+Current state: **v1.4.0** — one front door (`SKILL.md` routes everything to `skills/agent-project-bootstrap/assets/collab-repo/START.md`); the legacy v0.3 emit path is quarantined in `legacy/` (deprecated, unmaintained); July-2026 ways-of-working folded in per ADR-002. Track `STATUS.md` for current progress and deferred candidates.
 
-## Canonicality (v1.0 onward)
+## Canonicality
 
-This repo is canonical for everything. The earlier "vault is canonical, repo is a release snapshot between releases" rule (v0.x convention) is **sunset** as of v1.0.
+This repo is canonical for everything. (For the v0→v1 migration story — how canonicality moved here from the vault — see ADR-001 and `CHANGELOG.md`.)
 
 | Surface | Canonical home |
 |---|---|
@@ -32,10 +32,11 @@ The `CONVENTIONS.md` and `COORDINATION.md` files you'll see under `skills/agent-
 
 ```
 .claude-plugin/
-  plugin.json             # plugin manifest — version number lives here
+  plugin.json             # plugin manifest — version number lives here (synced with SKILL.md)
+.github/workflows/ci.yml  # runs tests/ with plain python on push + PR
 skills/
   agent-project-bootstrap/
-    SKILL.md              # Claude-facing emit instructions
+    SKILL.md              # thin front door — routes to assets/collab-repo/START.md
     references/           # canonical spec
       capability-vocab.v1.md
       persona.schema.md
@@ -43,46 +44,52 @@ skills/
       collab-repo-design.md
       design-decisions.md
       obsidian-setup.md
+      v1-self-hosting-notes.md
     assets/
       collab-repo/
         START.md, ORCHESTRATE.md, PARTICIPATE.md   # neutral entrypoints (v1.0)
+        manifest.example.yaml                      # worked example of the project spec
         adapters/
-          claude/, code-puppy/, generic/           # runtime adapters (each has HYDRATE.md)
-        agents/
-          __DEV__/, __AUTONOMOUS_EVENT__/, __AUTONOMOUS_CRON__/, librarian/
+          claude/, code-puppy/, generic/           # runtime adapters (each has HYDRATE.md
+                                                   # with a machine-readable capability map)
+        agents/                                    # persona.yaml + AGENT.md per archetype
+          __DEV__/, __AUTONOMOUS_EVENT__/, __AUTONOMOUS_CRON__/, librarian/,
+          __REVIEWER__/, __MERGER__/               # reviewer/merger added v1.4 (ADR-002)
         CONVENTIONS.md, COORDINATION.md, CLAUDE.md, BOOTSTRAP.md,
         BOOTSTRAP-ADMIN.md, QUICKSTART.md, README.md,
         _handoff/, decisions/, findings/, wiki/, workspace-template/,
         _failover-cron-sections/
-      vault/              # vault-project mode templates
-      workspaces/         # workspace CLAUDE.md templates
       commands/           # slash command templates (e.g. vc.md)
+  multi-agent-audit/      # sister skill — read-only project grading
+legacy/                   # DEPRECATED v0.3 emit path (vault/, workspaces/, SKILL-v0.3.md)
 docs/
-  adr/                    # architecture decision records (ADR-001 et seq.)
+  adr/                    # architecture decision records (ADR-001, ADR-002, ...)
+  notes/                  # supporting notes cited by the spec
+  LEARNINGS.md
 tests/
-  bi_runtime_accept.py    # bi-runtime acceptance harness
+  bi_runtime_accept.py    # acceptance harness — parses the adapters' capability maps
+  lint_repo.py            # placeholders, dead links, fixture leaks, version sync
   examples/               # example persona fixtures (rex, tess)
 CHANGELOG.md
 CLAUDE.md                 # this file
 CONTRIBUTING.md           # PR conventions incl. "docs land with code" rule
 LICENSE
 README.md
-STATUS.md                 # v1.0 close-out + v1.1 progress tracker
+STATUS.md                 # progress tracker + deferred candidates
 ```
 
 ## Versioning
 
-Semver. Patch (0.0.x): wording fixes, typos, broken references. Minor (0.x.0): new placeholders, new template sections, structural improvements. Major (x.0.0): breaking changes to the emit process or file layout.
-
-v1.0.0 (2026-06-03) is the runtime-agnostic milestone. **v1.1 adds Claude Tier-3 subagent rendering** (the Claude adapter now renders either Tier 2 `CLAUDE.md` or a Tier-3 native subagent with an enforced `tools:` allow-list, selected by the runtime-neutral `adapters.claude.tier` config). v1.2+ continues to track the remaining ADR-001 §10.8 deferred items (archetype parity, vault-project re-integration, native code-puppy packaging, cron/failover live wiring, additional adapters) and v1.0 close-out work.
+Semver. Patch (0.0.x): wording fixes, typos, broken references. Minor (0.x.0): new placeholders, new template sections, structural improvements. Major (x.0.0): breaking changes to the emit process or file layout. The version lives in `.claude-plugin/plugin.json` and the `SKILL.md` frontmatter — keep them in sync (`tests/lint_repo.py` enforces it). Release history and the v0→v1 migration story: `CHANGELOG.md` + ADR-001.
 
 ## Release workflow
 
 ```bash
-# 1. Verify the bi-runtime acceptance test passes:
-uv run --with pyyaml python tests/bi_runtime_accept.py
+# 1. Verify the tests pass (stdlib only, no deps):
+python3 tests/bi_runtime_accept.py
+python3 tests/lint_repo.py
 
-# 2. Bump version in .claude-plugin/plugin.json
+# 2. Bump version in .claude-plugin/plugin.json AND skills/agent-project-bootstrap/SKILL.md
 # 3. Move [Unreleased] content in CHANGELOG.md to a new version section
 
 git add .
@@ -104,11 +111,17 @@ Invoke in a throwaway directory and verify the emitted files match the templates
 
 **Bi-runtime acceptance test** — the gate for adapter / spec / canonical-contract changes:
 ```bash
-uv run --with pyyaml python tests/bi_runtime_accept.py
+python3 tests/bi_runtime_accept.py
 ```
-(The harness needs PyYAML; `uv run --with pyyaml` provides it without a global install.)
+(Stdlib only — no PyYAML needed since v1.4.) It parses the machine-readable capability maps
+in the adapters' `HYDRATE.md` files plus `references/capability-vocab.v1.md` and asserts that
+every v1 verb is mapped in every adapter, the tess/rex fixtures hydrate to an equivalent
+behavior contract across runtimes, and enforcement-tier claims are consistent. Run before any
+PR touching adapters, references, or the canonical contract files.
 
-Validates that one `persona.yaml` hydrates to an equivalent behavior contract on both Claude Code and code-puppy adapters. Run before any PR touching adapters, references, or the v1.0 canonical contract files.
+**Repo lint** — `python3 tests/lint_repo.py` — unfilled placeholders outside template dirs,
+dead relative markdown links, fixture-name leaks into templates, plugin/SKILL version sync.
+Both tests run in CI (`.github/workflows/ci.yml`) on every push and PR.
 
 ## PR rules
 
@@ -116,7 +129,8 @@ See `CONTRIBUTING.md`. Key rule (post-2026-06-03): **documentation lands with co
 
 ## See also
 
-- `STATUS.md` — v1.0 close-out items + v1.1 progress
-- `docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md` — the accepted v1.0 architecture
+- `STATUS.md` — progress tracker + deferred candidates
+- `docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md` — the accepted v1.0 architecture (and the full v0→v1 migration story)
+- `docs/adr/ADR-002-ways-of-working-2026-07.md` — the July-2026 ways-of-working folded in at v1.4
 - `CONTRIBUTING.md` — PR conventions including the docs-with-code rule
 - `README.md` — user-facing description of the skill
