@@ -58,3 +58,5 @@ SHA-bound REVIEW:PASS on the current head). Until then `forge/` is a Protocol + 
   surfaces — see ADR-003 §2.2).
 - **Handoff `updated:`-field maintenance** on close is not touched; only `status`/`closed:`
   are edited, textually.
+
+- **`baron status` waivers (surfaced by first pilot triage, 2026-07-23):** a `.baron-waivers.yaml` (or manifest block) mapping check subjects to a waiver {reason, handoff-file, expires} so deliberately-parked items (e.g. a branch kept for a future experiment) downgrade red -> warn with the reason shown, instead of staying red forever. Expiry keeps waivers honest.
