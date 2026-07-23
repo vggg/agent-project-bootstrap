@@ -57,6 +57,20 @@ Each persona gets `<worktrees_root>/<persona>` on branch `persona/<persona>`
 mid-flight, bring it into the worktree: `git -C <worktrees_root>/<persona>
 checkout <branch>`.
 
+**Per-worktree git identity (do not skip).** Worktrees share `.git/config`, so
+without this every persona commits as the canonical repo's identity and the
+commit-prefix/identity discipline silently breaks:
+
+```bash
+git -C <canonical> config extensions.worktreeConfig true
+git -C <worktrees_root>/<persona> config --worktree user.name  <Persona>
+git -C <worktrees_root>/<persona> config --worktree user.email <persona@project.local>
+```
+
+Also push each resting branch with an upstream so the session ritual's
+`git pull` works: `git -C <worktrees_root>/<persona> push -u origin
+persona/<persona>`. (Both learned in the 2026-07-23 pilot migration.)
+
 ## Step 4 — repoint the manifest
 
 In `manifest.yaml`: remove the migrated entries from `workspace.clones` and
@@ -83,6 +97,14 @@ old clone path. Update:
 
 Re-hydrating from `persona.yaml` (adapter HYDRATE.md) is the clean way —
 the yaml is canonical; the session files are derived.
+
+**Low-churn alternative (used by the 2026-07-23 pilot migration):** leave every
+path in the session files untouched by symlinking the old clone path to the
+worktree — `mv <old-clone> <old-clone>.retired-<date> && ln -s
+<relative-path-to-worktree> <old-clone-path>` — and add a short dated topology
+note to the session `CLAUDE.md` instead of rewriting its paths. git works
+transparently through the symlink; verify with `git -C <old-clone-path>
+status` and a `config user.name` check.
 
 ## Step 6 — retire the old clones
 

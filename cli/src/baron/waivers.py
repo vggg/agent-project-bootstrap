@@ -111,15 +111,17 @@ def load(collab: Path) -> tuple[list[Waiver], list[str]]:
 
 
 def render_file(waivers: list[Waiver]) -> str:
-    lines = [_HEADER, "waivers:"]
-    if not waivers:
-        lines[-1] = "waivers: []"
-    for w in waivers:
-        lines.append(f'  - subject: "{w.subject}"')
-        lines.append(f"    reason: {w.reason}")
-        lines.append(f"    handoff: {w.handoff}")
-        lines.append(f"    expires: {w.expires.isoformat()}")
-    return "\n".join(lines) + "\n"
+    # yaml.safe_dump, not hand-rolled lines: a reason like "Routed: rebase #98"
+    # contains a mapping colon and a comment marker, both of which broke the
+    # first hand-rolled version of this writer (found live, 2026-07-23).
+    body = yaml.safe_dump(
+        {"waivers": [w.to_dict() for w in waivers]},
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=True,
+        width=88,
+    )
+    return _HEADER + "\n" + body
 
 
 def add(

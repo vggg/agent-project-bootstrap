@@ -148,3 +148,29 @@ waivers:
     assert "EXPIRED" in result.output
     assert "active" in result.output
     assert "still parked" in result.output
+
+
+def test_add_quotes_yaml_special_characters(tmp_path):
+    """Regression: first live waiver had "Routed to Terrence: rebase over #98"
+    — a mapping colon and a comment marker — and the hand-rolled writer
+    produced unparseable YAML (found 2026-07-23 during the pilot migration)."""
+    from baron import waivers as W
+
+    W.add(
+        tmp_path,
+        "repo:code claude/annotator-court-ux",
+        reason="Routed to Terrence: rebase over #98 + redirect frozen-ledger hunk",
+        handoff="_handoff/2026-07-23-owner-branch-triage.md",
+        expires="2026-08-31",
+    )
+    W.add(
+        tmp_path,
+        "repo:code claude/audio-hit-detection",
+        reason="Parked for experiment B (close audio); revive via PR",
+        handoff="_handoff/2026-07-23-owner-branch-triage.md",
+        expires="2026-10-31",
+    )
+    loaded, problems = W.load(tmp_path)
+    assert problems == []
+    assert len(loaded) == 2
+    assert loaded[0].reason.startswith("Routed to Terrence: rebase over #98")
