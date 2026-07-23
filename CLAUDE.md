@@ -4,7 +4,7 @@
 
 The **canonical home** for the `agent-project-bootstrap` skill and its sister skill `multi-agent-audit` — the runtime-agnostic spec, adapters, references, tests, and meta-docs all live and evolve here.
 
-Current state: **v1.4.0** — one front door (`SKILL.md` routes everything to `skills/agent-project-bootstrap/assets/collab-repo/START.md`); the legacy v0.3 emit path is quarantined in `legacy/` (deprecated, unmaintained); July-2026 ways-of-working folded in per ADR-002. Track `STATUS.md` for current progress and deferred candidates.
+Current state: **v1.6.0** — one front door (`SKILL.md` routes everything to `skills/agent-project-bootstrap/assets/collab-repo/START.md`); the legacy v0.3 emit path is quarantined in `legacy/` (deprecated, unmaintained); July-2026 ways-of-working folded in per ADR-002; the `baron` CLI (`cli/`, ADR-003/004) mechanizes the conventions; four runtime adapters (claude, code-puppy, pydantic-ai, generic) with the enforcement-rules artifact (`capability-rules.v1.yaml`) as the single policy source. Track `STATUS.md` for current progress and deferred candidates.
 
 ## Canonicality
 
@@ -13,7 +13,7 @@ This repo is canonical for everything. (For the v0→v1 migration story — how 
 | Surface | Canonical home |
 |---|---|
 | ADRs (`docs/adr/`) | this repo |
-| Runtime adapters (`skills/agent-project-bootstrap/assets/collab-repo/adapters/{claude,code-puppy,generic}/`) | this repo |
+| Runtime adapters (`skills/agent-project-bootstrap/assets/collab-repo/adapters/{claude,code-puppy,pydantic-ai,generic}/`) | this repo |
 | Canonical spec (`skills/agent-project-bootstrap/references/`) | this repo |
 | Acceptance tests (`tests/`) | this repo |
 | Emit-time templates (everything else under `skills/agent-project-bootstrap/assets/`) | this repo |
@@ -39,6 +39,7 @@ skills/
     SKILL.md              # thin front door — routes to assets/collab-repo/START.md
     references/           # canonical spec
       capability-vocab.v1.md
+      capability-rules.md   # prose contract for the enforcement-rules artifact (v1.6)
       persona.schema.md
       manifest.schema.md
       collab-repo-design.md
@@ -50,8 +51,9 @@ skills/
         START.md, ORCHESTRATE.md, PARTICIPATE.md   # neutral entrypoints (v1.0)
         manifest.example.yaml                      # worked example of the project spec
         adapters/
-          claude/, code-puppy/, generic/           # runtime adapters (each has HYDRATE.md
-                                                   # with a machine-readable capability map)
+          claude/, code-puppy/, pydantic-ai/, generic/   # runtime adapters (each has
+                                                   # HYDRATE.md with a machine-readable
+                                                   # capability map)
         agents/                                    # persona.yaml + AGENT.md per archetype
           __DEV__/, __AUTONOMOUS_EVENT__/, __AUTONOMOUS_CRON__/, librarian/,
           __REVIEWER__/, __MERGER__/               # reviewer/merger added v1.4 (ADR-002)
@@ -61,6 +63,9 @@ skills/
         _failover-cron-sections/
       commands/           # slash command templates (e.g. vc.md)
   multi-agent-audit/      # sister skill — read-only project grading
+cli/                      # the baron CLI (ADR-003/004): validate/status/ledgers/guard/lock/
+                          # worktree/waivers + runtime hydrators (baron/runtimes/) and the
+                          # packaged capability-rules artifact (baron/data/); pytest suite
 legacy/                   # DEPRECATED v0.3 emit path (vault/, workspaces/, SKILL-v0.3.md)
 docs/
   adr/                    # architecture decision records (ADR-001, ADR-002, ...)
@@ -85,9 +90,10 @@ Semver. Patch (0.0.x): wording fixes, typos, broken references. Minor (0.x.0): n
 ## Release workflow
 
 ```bash
-# 1. Verify the tests pass (stdlib only, no deps):
+# 1. Verify the tests pass (the two stdlib suites + the baron CLI suite):
 python3 tests/bi_runtime_accept.py
 python3 tests/lint_repo.py
+uv run --project cli pytest cli/tests
 
 # 2. Bump version in .claude-plugin/plugin.json AND skills/agent-project-bootstrap/SKILL.md
 # 3. Move [Unreleased] content in CHANGELOG.md to a new version section

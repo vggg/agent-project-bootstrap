@@ -1,7 +1,7 @@
 {
   "name": "agent-project-bootstrap",
-  "description": "Scaffold a runtime-agnostic multi-agent project: one persona.yaml hydrates working personas on any AI coding agent (Claude Code, code-puppy, ...) via per-runtime adapters. One front door (START.md → ORCHESTRATE/PARTICIPATE); the legacy v0.3 emit modes are deprecated and quarantined in legacy/. Also ships a sister skill — multi-agent-audit — for grading multi-agent projects against an evidence-based rubric (read-only). v1.5 ships the baron CLI (ADR-003/004): validate/status/ledgers/handoffs (M1–M3), the baron guard PreToolUse hook (deterministic capability enforcement on Claude Code), baron lock (PR-as-lock + CI lock-guard template), worktree topology tooling, and expiring status waivers.",
-  "version": "1.5.0",
+  "description": "Scaffold a runtime-agnostic multi-agent project: one persona.yaml hydrates working personas on any AI coding agent (Claude Code, code-puppy, pydantic-ai, ...) via per-runtime adapters. One front door (START.md → ORCHESTRATE/PARTICIPATE); the legacy v0.3 emit modes are deprecated and quarantined in legacy/. Also ships a sister skill — multi-agent-audit — for grading multi-agent projects against an evidence-based rubric (read-only). v1.5 shipped the baron CLI (ADR-003/004): validate/status/ledgers/handoffs, the baron guard PreToolUse hook, baron lock, worktree tooling, waivers. v1.6 externalizes the guard's rule table as versioned package data (capability-rules.v1.yaml), adds AGENTS.md emission to the generic adapter, and ships a fourth runtime adapter — pydantic-ai (in-process guard: sub-tool denials natively enforced) with a working hydrator (baron hydrate pydantic-ai, baron-cli[pydantic-ai] extra).",
+  "version": "1.6.0",
   "author": {
     "name": "vggg"
   }

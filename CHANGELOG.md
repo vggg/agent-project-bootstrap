@@ -4,6 +4,125 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.0] — 2026-07-23
+
+The fourth-runtime release: the guard's rule table becomes a versioned, machine-readable
+artifact every enforcer shares; the generic adapter emits `AGENTS.md` (the cross-runtime
+context convention); and pydantic-ai lands as a full runtime adapter with a working
+in-process hydrator — the first adapter whose sub-tool denials are natively `enforced`.
+
+Also in this release — `multi-agent-audit` v1.4 telemetry mode: `scripts/ingest_otel.py`
+(OTLP-JSON/JSONL trace-export ingestion — Claude Code, Logfire, Phoenix; stdlib-only,
+files-only, never live endpoints) + `scripts/merge_telemetry.py` (additive, source-tagged
+snapshot merge; git-derived metrics never overwritten). Upgrades intervention-tax inputs
+from `inferred` to `measured` when an OTel export exists; `not measurable` is reported
+honestly, never estimated. New `tests/test_ingest_otel.py` (66 checks) + fixtures.
+
+### Added — the capability-rules artifact (single source for enforcement rules)
+
+- **`cli/src/baron/data/capability-rules.v1.yaml`** (new, `rules_version: 1`) — the
+  runtime-agnostic verb→enforcement rule table `baron guard` previously hardcoded, now
+  shipped as baron package data (`importlib.resources`, loaded by the new
+  `cli/src/baron/rules.py`): git command patterns (push to default branch / `--all` →
+  `push_main`; force flags + `+refspec` → `force_push`; `gh pr merge` → `merge_pr`;
+  `git merge` on the default branch → `push_main`), the value-taking options each parser
+  must skip, fallback default-branch names, file-op scoping semantics
+  (`_handoff/` universal-write, own-vs-other `agents/<slug>/` spec dirs, denied-scopes-
+  always-block precedence), the `conservative-deny` ambiguity policy, and per-rule notes
+  (including which verbs are deliberately NOT parsed: `open_pr`/`run_tests`). Placement
+  rationale recorded in the ADR-004 addendum §4.1.
+- **`guard.py` refactored to consume the artifact** — mechanics (shell splitting, refspec
+  resolution, branch lookups, hook I/O) stay code; every pattern is loaded from the rules.
+  Behavior identical: the 19 guard tests pass unchanged. A broken/unsupported artifact
+  fails CLOSED (deny with the reason), never open. New `cli/tests/test_rules.py` asserts
+  the artifact is packaged + versioned, its verb set exactly matches the frozen 10-verb
+  vocabulary, guard decisions actually follow the loaded data (mutation test), and
+  `rules_version` mismatches are refused.
+- **`references/capability-rules.md`** (new skill reference) — the prose contract: the
+  artifact is THE single source for enforcement rules; consumers (baron guard, runtime
+  adapters) load it and never restate patterns. `capability-vocab.v1.md` gains a pointer
+  note (the vocabulary itself is untouched — still frozen at 10 verbs).
+
+### Added — AGENTS.md emission (generic adapter, Tier 1)
+
+- **`adapters/generic/HYDRATE.md` step 3 (new)** — Tier-1 hydration now emits ONE
+  artifact: an `AGENTS.md` in the persona's working-copy root, derived entirely from
+  `persona.yaml` (marked generated-do-not-hand-edit), with identity, scope, session
+  ritual, capability grants AND denials in plain imperative language, and collab-repo
+  pointers. AGENTS.md-aware runtimes (pydantic-ai-harness `RepoContext()`, etc.)
+  auto-load it; for everything else it is the core loop's re-read target. **Honest tier
+  note carried in the template itself:** everything in it is instruction-only — emitting
+  a file does not upgrade the tier.
+- **Claude adapter note** — `CLAUDE.md` remains that adapter's native context file;
+  emitting `AGENTS.md` alongside is optional/additive (useful when the same working copy
+  is visited by AGENTS.md-aware runtimes), both derived from `persona.yaml`.
+
+### Added — pydantic-ai runtime adapter (the fourth runtime)
+
+- **`adapters/pydantic-ai/HYDRATE.md`** (new) — full adapter in the standard format with
+  the machine-readable `capability-map:v1` table covering all 10 verbs. The adapter's
+  distinction, stated honestly: hydration is **in-process**, so the five guard-covered
+  sub-tool denials (`write_path` scoping, `merge_pr`, `push_main`, `force_push`,
+  `edit_other_personas`) are natively class **`enforced`** — the interception hook cannot
+  be absent from an agent built via `build_agent` (unlike the Claude hook, which degrades
+  without baron). Whole-tool denials via capability omission (no shell verbs → no `Shell`
+  capability at all; no write verbs → natively read-only `FileSystem`).
+  `open_pr`/`run_tests` denials stay `instructed` (the rules artifact defines no
+  detection for them). Verified against **pydantic-ai-harness 0.10.0** +
+  **pydantic-ai-slim 2.16.0** (2026-07-23; APIs: `Agent(capabilities=[...])`,
+  `AbstractCapability.before_tool_execute` + `ModelRetry` veto, harness
+  `FileSystem`/`Shell`/`RepoContext`).
+- **`cli/src/baron/runtimes/pydantic_ai.py`** (new) — the working hydrator:
+  `build_agent(persona_file, collab_root=None, model=...) -> Agent`. Instructions
+  composed from persona identity/scope/ritual/capabilities; `FileSystem` scoped per
+  write verbs (`protected_patterns=['*', '**/*']` = natively read-only when no write
+  verb); `Shell` only when a shell-granting verb is allowed, with `denied_commands`
+  seeded with common test runners when `run_tests` is denied; a guard capability whose
+  `before_tool_execute` evaluates `run_command` commands and file-write paths through
+  `baron.guard`'s evaluators — i.e. the SAME `capability-rules.v1.yaml` the Claude hook
+  uses — and vetoes denials with `ModelRetry` (reason fed to the model, mirroring
+  exit-2 + stderr). `runtime.model_hint` honored as the default model; the offline
+  `"test"` model is the fallback placeholder.
+- **Optional extra `baron-cli[pydantic-ai]`** — pinned `pydantic-ai-harness>=0.10,<0.11`
+  + `pydantic-ai-slim>=2.14.1,<3` (harness is 0.x; minor releases may break). Without
+  the extra the module import-errors cleanly with install instructions. The dev
+  dependency group repeats the pins so the test suite exercises the real APIs.
+- **`baron hydrate pydantic-ai --persona-file F [--out agent_setup.py]`** (new command,
+  new `hydrate` sub-app) — emits a ready-to-edit bootstrap script (imports
+  `build_agent`, offline-model placeholder). Emission needs only baron; running the
+  script needs the extra.
+- **`cli/tests/test_pydantic_ai.py`** (new, offline only — TestModel/FunctionModel, no
+  API keys): dev fixture gets Shell, reviewer fixture gets NO Shell capability;
+  write scoping follows the verbs (scopes allowed, `src/` blocked, own vs other
+  `agents/<slug>/` dirs); a scripted `git push origin main` attempt through a REAL agent
+  run is vetoed before execution with the guard's reason (FunctionModel scripts the tool
+  call — TestModel cannot script specific args); interceptor unit tests; clean
+  import-error path (subprocess with the dependency blocked); CLI emission tests.
+- **`tests/bi_runtime_accept.py`** — the sweep now covers **4 adapters**; the pydantic-ai
+  map must cover all 10 verbs and the tess/rex fixtures must hydrate to the equivalent
+  contract. Enforcement-tier consistency extended and TIGHTENED: both per-adapter
+  allowances (claude's `enforced-with-baron (instructed otherwise)`, pydantic-ai's plain
+  `enforced` on sub-tool rows) are now accepted ONLY on the five guard-covered verbs —
+  a guard claim on an `open_pr`/`run_tests` row fails for every adapter.
+
+### Changed — meta
+
+- `plugin.json` + `SKILL.md` frontmatter `1.5.0 → 1.6.0`; `baron-cli` package
+  `0.2.0 → 0.3.0` (and `baron.__version__` re-synced — it had lagged at 0.1.0).
+- ADR-004 gains a **§4 addendum**: §4.1 rules-artifact externalization + placement
+  rationale; §4.2 the pydantic-ai adapter's native-`enforced` sub-tool claim and why it
+  needs no qualifier.
+- ADR-001 §4.5/§4.6 current-adapter enumerations, `README.md` (runtime count 3 → 4,
+  support table row, adapters listing, baron section), `CLAUDE.md`, `CONTRIBUTING.md`,
+  `cli/README.md` (rules artifact, `baron hydrate pydantic-ai`, the extra),
+  `STATUS.md`, `docs/BACKLOG.md` (guard-coverage entry re-scoped: pydantic-ai now has an
+  in-process seam; pilot validation of the new adapter tracked), emitted
+  `START.md`/`ORCHESTRATE.md` (runtime-key table + canon/adapters copy lists now include
+  pydantic-ai and `capability-rules.md`).
+- `tests/lint_repo.py` skips `.venv`/`.pytest_cache` (the newly installed harness ships
+  READMEs whose relative links are not this repo's content).
+- CLI test suite 75 → 91 tests.
+
 ## [1.5.0] — 2026-07-23
 
 The mechanisms release: baron grows enforcement (guard), locking (PR-as-lock), the

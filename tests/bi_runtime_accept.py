@@ -11,11 +11,16 @@ marker) plus the frozen vocabulary table in references/capability-vocab.v1.md, a
       contract on every adapter, per those parsed tables (identity, granted capability
       categories, denies, whole-tool denial honoring);
   (c) enforcement-tier claims are consistent: the generic (Tier 1) adapter claims
-      `instructed` for everything; Tier-3 adapters (claude, code-puppy) claim `enforced`
-      exactly for whole-tool verbs and never plain `enforced` for sub-tool verbs. The
-      claude adapter (only) may claim the exact qualified form
-      `enforced-with-baron (instructed otherwise)` on sub-tool rows — the baron guard
-      PreToolUse hook (baron M4, ADR-004); any other wording fails.
+      `instructed` for everything; Tier-3 adapters (claude, code-puppy, pydantic-ai)
+      claim `enforced` exactly for whole-tool verbs. Sub-tool rows are `instructed`,
+      with exactly two per-adapter allowances, both limited to the five guard-covered
+      verbs (write_path, merge_pr, push_main, force_push, edit_other_personas — the
+      verbs capability-rules.v1.yaml defines detection for): the claude adapter may
+      claim the exact qualified form `enforced-with-baron (instructed otherwise)`
+      (the baron guard PreToolUse hook is external and degrades without baron,
+      ADR-004 §2.4), and the pydantic-ai adapter may claim plain `enforced`
+      (in-process interception cannot be absent — ADR-004 addendum §4.2). Any other
+      wording, or either allowance on an open_pr/run_tests row, fails.
 
 Editing a HYDRATE.md table incorrectly (dropping a verb, flipping a Grants category,
 overclaiming enforcement) fails this test.
@@ -31,14 +36,19 @@ ROOT = os.path.dirname(HERE)
 SKILL = os.path.join(ROOT, "skills", "agent-project-bootstrap")
 ADAPTERS_DIR = os.path.join(SKILL, "assets", "collab-repo", "adapters")
 VOCAB = os.path.join(SKILL, "references", "capability-vocab.v1.md")
-ADAPTERS = ["claude", "code-puppy", "generic"]
-TIER3_ADAPTERS = {"claude", "code-puppy"}
+ADAPTERS = ["claude", "code-puppy", "generic", "pydantic-ai"]
+TIER3_ADAPTERS = {"claude", "code-puppy", "pydantic-ai"}
 MARKER = "capability-map:v1"
 VALID_GRANTS = {"read", "write", "shell"}
+# The five sub-tool verbs the capability-rules artifact defines detection for
+# (cli/src/baron/data/capability-rules.v1.yaml). Only these rows may carry a
+# guard-enforcement claim; open_pr/run_tests are not guard-parsed anywhere.
+GUARD_VERBS = {"write_path", "merge_pr", "push_main", "force_push", "edit_other_personas"}
 # The ONE accepted qualified form (exact string) for sub-tool denials that the
 # baron guard PreToolUse hook enforces on Claude Code when baron is installed.
 BARON_QUALIFIED = "enforced-with-baron (instructed otherwise)"
-HOOK_GUARD_ADAPTERS = {"claude"}  # only claude has the guard hook wiring
+HOOK_GUARD_ADAPTERS = {"claude"}  # external hook wiring: qualified form allowed
+NATIVE_GUARD_ADAPTERS = {"pydantic-ai"}  # in-process guard: plain `enforced` allowed
 VALID_ENFORCEMENT = {"enforced", "instructed", BARON_QUALIFIED}
 
 FAILURES = []
@@ -283,10 +293,16 @@ def main():
             else:
                 expected = "enforced" if vocab[verb] == "whole-tool" else "instructed"
                 allowed = {expected}
-                if vocab[verb] == "sub-tool" and name in HOOK_GUARD_ADAPTERS:
-                    # baron guard hook: sub-tool rows may claim the exact
-                    # qualified form (and only that form) instead.
-                    allowed.add(BARON_QUALIFIED)
+                if vocab[verb] == "sub-tool" and verb in GUARD_VERBS:
+                    if name in HOOK_GUARD_ADAPTERS:
+                        # baron guard hook (external, degrades without baron):
+                        # guard-covered rows may claim the exact qualified
+                        # form (and only that form) instead.
+                        allowed.add(BARON_QUALIFIED)
+                    if name in NATIVE_GUARD_ADAPTERS:
+                        # in-process interception (cannot be absent): guard-
+                        # covered rows may claim plain `enforced`.
+                        allowed.add("enforced")
                 if row["enforcement"] not in allowed:
                     fail(f"[{name}] {verb}: Deny enforcement '{row['enforcement']}' but the"
                          f" {vocab[verb]} class allows only {sorted(allowed)}")
@@ -335,8 +351,9 @@ def main():
         sys.exit(1)
     print("BI-RUNTIME ACCEPTANCE: PASS")
     print("Every v1 verb is mapped in every adapter; fixtures hydrate to an equivalent")
-    print("behavior contract on claude, code-puppy, and generic; enforcement claims are")
-    print("consistent with the frozen vocabulary's enforceability classes.")
+    print("behavior contract on claude, code-puppy, generic, and pydantic-ai;")
+    print("enforcement claims are consistent with the frozen vocabulary's")
+    print("enforceability classes.")
 
 
 if __name__ == "__main__":

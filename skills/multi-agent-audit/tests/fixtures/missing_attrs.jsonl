@@ -1,0 +1,3 @@
+{"trace_id": "tr-200", "span_id": "m1", "span_name": "llm call", "start_timestamp": "2026-07-03T10:00:00Z", "end_timestamp": "2026-07-03T10:00:05Z", "attributes": {"gen_ai.system": "anthropic"}}
+{"trace_id": "tr-200", "span_id": "m2", "span_name": "tool", "start_timestamp": "2026-07-03T10:00:10Z", "end_timestamp": "2026-07-03T10:00:11Z", "attributes": {"tool.name": "search"}}
+this line is not json {{{

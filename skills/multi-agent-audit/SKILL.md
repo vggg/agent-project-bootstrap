@@ -44,6 +44,7 @@ Before any data gathering, confirm with the human:
 9. **Auditor independence** — is the invoking auditor (Claude Code session OR the `project-auditor` subagent) itself a participant in the audited project (e.g., one of the declared personas)? If yes, capture the participant_personas list and surface the conflict-of-interest in §11 Methodology. **Honesty rule** (v1.3+): a participant auditor's findings on Agents / Coordination / Knowledge-capture dimensions may be skewed; flag, do not suppress.
 10. **Operational fidelity weighting** — default (equal weight across dimensions) or weighted (caller supplies per-dimension weights, OR uses the v1.3 default weights — see `references/metric-taxonomy.md § Operational fidelity weighting`).
 11. **Timeline events** — include a §9.5 Timeline section? Default: yes. See `references/timeline.md` for the event taxonomy.
+12. **Telemetry export (optional, v1.4)** — does the project have an exported OpenTelemetry trace/event FILE (Claude Code OTel export, Logfire span export, Phoenix span export)? If yes, telemetry mode upgrades session-level metrics — including the intervention-tax inputs — from `inferred` to `measured`. Files only; the audit never queries a live telemetry endpoint. Default: no (artifact-based audit is the zero-infra default). See § Telemetry mode below.
 
 Use HTTPS for any clone. Do not configure git identity in audited repos.
 
@@ -122,6 +123,8 @@ Emit:
 Full procedure and worked example: `references/drift-analysis.md`.
 
 ### Step 1 — Metrics
+
+> **Telemetry mode (optional):** if the human supplied an OTel trace-export file (input 12), run `scripts/ingest_otel.py` on it now and fold the result in with `scripts/merge_telemetry.py` after the snapshot is written — the session-level rows it produces are `measured`, and sit alongside (never replacing) the git-derived rows. See § Telemetry mode below.
 
 Mine the **platform**, not just the git clone. The git history under-counts: it misses PR review activity, issue triage, scheduled-action runs, and the work of non-committing agents. Use `gh api` for anything that requires platform context.
 
@@ -273,6 +276,49 @@ Snapshot schema in `references/confidence-and-trends.md`.
 
 When ≥2 snapshots exist for the same project, the report's **Trend** section computes deltas (intervention tax, rework rate, merge-gate wait, operational fidelity) and visualizes them as small sparklines in the HTML dashboard.
 
+## Telemetry mode (optional, v1.4)
+
+By default this skill computes everything from git/gh archaeology — that stays the **zero-infra default** and requires nothing from the audited project. Telemetry mode is an *optional upgrade*: when the project already exports OpenTelemetry data, the auditor ingests the exported **files** and computes session-level metrics quantitatively, upgrading those rubric rows from `inferred` to `measured`.
+
+**Files only, never endpoints.** The ingester (`scripts/ingest_otel.py`) reads OTLP-JSON or flat JSONL span/event files handed over by the human. It never calls a telemetry backend, needs no API keys, and stays reproducible — anyone with the same export files gets the same numbers. If the human offers "just query our Logfire/Phoenix instance," decline and ask for an export file instead.
+
+**What it buys (the honesty upgrade).** Git archaeology can only *infer* the intervention tax from commit-sequence proxies (fix-up commits, redo PRs). A trace export contains actual **user-prompt events** — each one is a human turn — so telemetry mode *measures* the intervention-tax inputs directly:
+
+- human turns per session (`measured` when the export has a logs/events stream);
+- human turns per task (`measured` only when task-boundary attributes like `workflow.run_id` exist — otherwise reported `not measurable (attribute absent)`, never estimated);
+- plus session count/durations, tool-call counts and error rates, token totals, and cost totals — each labeled `measured` with the source file named, or `not measurable` with the missing attribute named.
+
+**What it does NOT replace.** Traces show **ACTUAL behavior only**. The INTENDED lens still comes from the project's declared docs (CONVENTIONS.md, persona.yaml, roster). Telemetry mode therefore NEVER replaces the dual-lens drift analysis or the operational-fidelity score — it sharpens the ACTUAL column of the drift scorecard, nothing more. A project with beautiful traces can still be great-design/low-fidelity.
+
+### Obtaining an export (three supported sources, no vendor lock-in)
+
+1. **Claude Code OTel export** (docs: <https://code.claude.com/docs/en/monitoring-usage>). Claude Code emits metrics + log events over OTLP (`CLAUDE_CODE_ENABLE_TELEMETRY=1`, `OTEL_LOGS_EXPORTER=otlp`), and trace spans behind a beta flag (`CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1`, `OTEL_TRACES_EXPORTER=otlp`). To get a *file*, point the export at an OTel Collector with a `file` exporter, or use `OTEL_LOGS_EXPORTER=console`/`OTEL_EXPORTER_OTLP_PROTOCOL=http/json` captured to disk. Honesty notes verified against the docs page:
+   - The **logs/events stream** is what carries the intervention-tax inputs: `claude_code.user_prompt` events (one per human turn, with `session.id`, `prompt_length`) and `claude_code.api_request` events (tokens via `input_tokens`/`output_tokens`/`cache_read_tokens`/`cache_creation_tokens`, cost via `cost_usd`/`cost_usd_micros`, `model`, `duration_ms`). Tool outcomes come from `claude_code.tool_result` events (`tool_name`, `success`, `duration_ms`, `error_type`).
+   - The **trace spans** (beta) add `claude_code.interaction` (one per user prompt), `claude_code.llm_request` (tokens, `stop_reason`, but **no cost attribute** — cost lives on the `api_request` event), and `claude_code.tool` spans.
+   - **Task boundaries:** spans carry `workflow.run_id` only when a workflow is running; ordinary sessions have no task-boundary attribute, so `human_turns_per_task` is usually `not measurable` for Claude Code exports — the fallback is human turns per session plus the git-derived task counts.
+   - The **metrics stream** (counters like `claude_code.token.usage`) carries aggregates, not per-session events; the ingester notes it and skips it.
+2. **Logfire (Pydantic)** — OTel-native. Export spans as JSON/NDJSON via the Query API: `POST https://logfire-us.pydantic.dev/v2/query` (or `logfire-eu.…`) with a read token and a SQL query over the `records` table, `Accept: application/x-ndjson` (docs: <https://pydantic.dev/docs/logfire/manage/query-api/>). The *human* runs that export and hands the file over — the audit itself never holds the read token. Rows carry `trace_id`/`span_name`/`start_timestamp`/`end_timestamp` plus OTel GenAI attributes (`gen_ai.usage.input_tokens`, `gen_ai.system`, …), which the ingester recognizes.
+3. **Phoenix (Arize)** — export spans to a file from the Phoenix client: `client.spans.get_spans_dataframe(...)` then `df.to_json(path, orient="records", lines=True)` (docs: <https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans>), or the GraphQL/OTLP export equivalents. The ingester understands OpenInference conventions (`span_kind`/`openinference.span.kind` = `LLM`/`TOOL`, `llm.token_count.prompt`/`.completion`, flattened `attributes.<dotted>` columns, `context.trace_id`, `status_code`).
+
+### Running it
+
+```bash
+# 1. Ingest one or more export files -> telemetry metrics JSON
+python3 scripts/ingest_otel.py <export.json> [<export2.jsonl> ...] \
+    --output <output>/telemetry-metrics.json --pretty
+
+# 2. After writing the snapshot, fold the telemetry in (ADDITIVE — a new
+#    merged file; shipped snapshots stay frozen) and print the report table
+python3 scripts/merge_telemetry.py \
+    --snapshot <output>/snapshots/<ts>.json \
+    --telemetry <output>/telemetry-metrics.json \
+    --output <output>/snapshots/<ts>-with-telemetry.json --markdown
+```
+
+`merge_telemetry.py` adds a `metrics.telemetry.*` block plus `metrics.autonomy.human_turns_per_session_otel` / `human_turns_per_task_otel`, each tagged `"source": "otel:<file>"`. Git-derived values — including the git-derived `intervention_tax` — are **never overwritten**; the report cites both, and the Source tag is what distinguishes a measured telemetry row from a git-derived one. `render_report.py` needs no flags: the merged snapshot renders as-is (unknown fields are ignored; `not measurable` telemetry rows surface automatically in the caveats section). Paste the `--markdown` table into report §5 as "Telemetry-derived metrics".
+
+**Honesty rules, restated for this mode:** every telemetry metric is `measured` (with the source file named) or `not measurable (attribute absent)` — the ingester downgrades to `inferred` only when an attribute is present on part of the records (with a coverage note), and it never estimates: no cost-from-token-counts, no assumed zeros (a session with no logs stream reports human turns `not measurable`, not `0`). Ingesting the export files is read-only; the export files themselves must live outside the audited repos or be treated as read-only inputs.
+
 ## Files in this skill
 
 ```
@@ -302,8 +348,12 @@ skills/multi-agent-audit/
     parse_coverage.py                 # v1.3 — coverage delta from common report formats
     render_report.py                  # v1.3 — renders the HTML dashboard from snapshot + template
     persona_attribution.py            # v1.3 — per-persona PR attribution via the multi-substrate lens
+    ingest_otel.py                    # v1.4 — telemetry mode: OTel export FILES -> session metrics JSON
+    merge_telemetry.py                # v1.4 — folds telemetry metrics into the snapshot (additive, source-tagged)
   tests/
     subagent_isolation_smoke.md       # v1.3 — verifies the project-auditor subagent can't write to audited repos
+    test_ingest_otel.py               # v1.4 — telemetry-mode checks (run: python3 tests/test_ingest_otel.py)
+    fixtures/                         # v1.4 — hand-crafted OTLP-JSON + JSONL trace-export fixtures
   agents/
     project-auditor.md                # subagent definition (Claude Code)
 ```

@@ -174,6 +174,13 @@ conventions. `_handoff/` files may be direct-pushed; substantive changes go via 
 The `tools:` line is the **enforced** layer; the "What never happens" block is the
 **instructed** layer for sub-tool denials. (Mirror of the code-puppy two-layer contract.)
 
+> **`AGENTS.md` note:** `CLAUDE.md` remains this adapter's NATIVE context file — Claude Code
+> auto-loads it, and nothing here changes. Emitting an `AGENTS.md` alongside it (the generic
+> adapter's step-3 template, `adapters/generic/HYDRATE.md`) is **optional and additive**:
+> useful when the same working copy is also visited by AGENTS.md-aware runtimes
+> (pydantic-ai-harness `RepoContext()`, etc.), redundant otherwise. If you emit both, both
+> are DERIVED from `persona.yaml` — regenerate together, never hand-edit either.
+
 ### 3b. Tier 2 — write the persona `CLAUDE.md`
 Write to the persona's workspace as `CLAUDE.md` (Claude auto-loads it as session context).
 Mirror the v0.3.x `__DEV__/AGENT.md` shape, with YAML frontmatter + these sections:

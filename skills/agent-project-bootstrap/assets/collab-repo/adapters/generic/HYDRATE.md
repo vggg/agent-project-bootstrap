@@ -25,8 +25,13 @@ The core loop:
 > **Each turn: (1) re-read `persona.yaml`, (2) check the action you are about to take against
 > `capabilities.allow` / `deny`, (3) act only if allowed, (4) follow the ritual + conventions.**
 
-There is no hydration ARTIFACT to emit (no JSON agent, no CLAUDE.md). "Hydration" here means
-loading the spec into your working context and committing to honor it.
+Tier-1 hydration emits ONE artifact: an **`AGENTS.md`** in the persona's working-copy root
+(step 3 below). `AGENTS.md` is the emerging cross-runtime context-file convention —
+AGENTS.md-aware runtimes (pydantic-ai-harness `RepoContext()`, code editors and agents that
+walk up for `AGENTS.md`) auto-load it at session start, which gives even a Tier-1 persona a
+persistent restatement of its spec. Runtimes that do NOT auto-load it lose nothing: the file
+doubles as your re-read target for the core loop. Everything in it is still
+**instruction-only** — emitting a file does not upgrade the tier.
 
 ---
 
@@ -76,24 +81,76 @@ appear under allow? Is it under deny? If denied or not in allow, **do not do it*
 > Tier-1 reality: the runtime WILL hand you the tools to violate these (there is no allow-list
 > to remove them). The guardrail is your discipline. Treat `deny` as inviolable.
 
-### 3. Set git identity (every session, before committing)
+### 3. Emit `AGENTS.md` in the persona's working-copy root
+
+Write an `AGENTS.md` at the root of the persona's working copy (the code-repo clone or
+worktree the persona operates in), derived ENTIRELY from `persona.yaml` + `manifest.yaml`.
+It is a generated file — regenerate it when `persona.yaml` changes; never hand-edit it.
+
+Why: `AGENTS.md` is the cross-runtime context-file convention. Runtimes that auto-load it
+(pydantic-ai-harness `RepoContext()`, other AGENTS.md-aware agents) start every session
+already carrying the persona; for everything else it is the single file to re-read in the
+core loop. **Honesty:** at this tier the file is instructions only — nothing in it is
+enforced.
+
+Template (fill from `persona.yaml`; paths RELATIVE per `manifest.paths` — never absolute):
+
+```markdown
+<!-- GENERATED from agents/<slug>/persona.yaml — do not hand-edit; re-derive on change. -->
+# <Persona> — <archetype> persona for <project>
+
+You are <Persona>. Re-read this file (or the canonical
+<collab.path>/agents/<slug>/persona.yaml) whenever context may have drifted.
+
+## Identity
+- Git author: <git_name> / <git_email>
+- Commit prefix: <commit_prefix>
+- Routing label: <routing_label>
+Before committing, set per-repo git config:
+  git config user.name "<git_name>"
+  git config user.email "<git_email>"
+
+## Scope
+<scope.summary>
+- <scope.focus[0]>
+- ...
+
+## Session-start ritual (every session, in order)
+<render session_ritual per step 5's token table>
+
+## What you may do
+<one imperative line per capabilities.allow verb, e.g. "You may write code and tests.",
+ "You may write the collab scopes: findings/, _handoff/.">
+
+## What never happens (instruction-only at this tier — nothing here is enforced)
+<one imperative line per capabilities.deny verb, e.g. "Never merge a pull request.",
+ "Never push to the default branch.", "Never write wiki/.">
+- Never git add -A / git add . (stage only intended files; avoids leaking secrets).
+
+## Collab repo
+- Conventions: <collab.path>/CONVENTIONS.md · Coordination: <collab.path>/COORDINATION.md
+- Handoffs: <collab.path>/_handoff/ (yours to write, always)
+- Canonical spec: <collab.path>/agents/<slug>/persona.yaml (this file is derived from it)
+```
+
+### 4. Set git identity (every session, before committing)
 Use `identity.git_name` / `identity.git_email`, and prefix commits with
 `identity.commit_prefix`. Never `git add -A` / `git add .` (stage only intended files;
 avoids leaking secrets).
 
-### 4. Run the session-start ritual (resolve intent tokens via the manifest)
+### 5. Run the session-start ritual (resolve intent tokens via the manifest)
 - `sync_repos` -> update each repo in `manifest.repos` that has a `remote` (use RELATIVE
   paths from `manifest.paths.root`); skip local-only repos.
 - `read_conventions` -> read collab `CONVENTIONS.md` + `COORDINATION.md`.
 - `check_handoffs` -> search `_handoff/` for items addressed to you or `all` with open status.
 - `check_backlog` -> resolve `manifest.backlog` (a file read, or an issue-tracker query).
 
-### 5. Do the work, re-checking capabilities each step
+### 6. Do the work, re-checking capabilities each step
 Claim a backlog item -> branch -> work -> report to the allowed write scope (e.g. findings/)
 -> commit with your prefix -> open a PR if `open_pr` is allowed (else hand off). Re-read
-`persona.yaml` if you are unsure whether an action is permitted.
+`persona.yaml` (or the derived `AGENTS.md`) if you are unsure whether an action is permitted.
 
-### 6. Hand off + close
+### 7. Hand off + close
 Drop a `_handoff/` if another persona is needed; update the backlog item status.
 
 ---
@@ -118,5 +175,7 @@ If unsure, I deny myself and hand off to the owner.
 
 ## What this adapter does NOT do
 
-- It emits no persistent artifact. If the runtime later gains Tier 2/3 support, switch to that
-  adapter to gain enforcement / persistence. Tier 1 is correct, not optimal.
+- It emits no ENFORCED artifact — `AGENTS.md` (step 3) is generated context, not an
+  allow-list; nothing at this tier is hard-enforced. If the runtime later gains Tier 2/3
+  support, switch to that adapter to gain enforcement / persistence. Tier 1 is correct,
+  not optimal.

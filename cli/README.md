@@ -15,13 +15,15 @@ file it writes remains fully human/agent-legible.
 
 Dependencies: **typer + pyyaml only**. `git` is driven via subprocess. `gh` is an
 accepted prerequisite for forge features only (`baron lock`) — everything else
-below works without `gh` installed.
+below works without `gh` installed. The pydantic-ai runtime adapter is an
+**optional extra** (`baron-cli[pydantic-ai]`, pinned) — see `baron hydrate` below.
 
 ## Install
 
 ```bash
 # from the repo root, with uv:
 uv tool install ./cli            # installs the `baron` console script
+uv tool install './cli[pydantic-ai]'   # + the pydantic-ai runtime adapter
 # or for development:
 uv run --project cli baron --help
 # or with plain pip (>= 3.10):
@@ -143,6 +145,16 @@ What it decides:
   persona's declared `write_path` scopes remain.
 - **Unknown tools** — pass (a capability gate, not an allowlist).
 
+**Policy source (v0.3.0):** guard's rule table — the command patterns and
+file-op scoping semantics above, plus the conservative-deny ambiguity policy —
+is NOT hardcoded: it lives in the versioned artifact
+`src/baron/data/capability-rules.v1.yaml` (package data, loaded by
+`src/baron/rules.py`; `rules_version: 1`). It is THE single source for
+enforcement rules; the pydantic-ai adapter below consumes the same table, so
+decisions are identical across runtimes. A missing/unsupported artifact fails
+CLOSED. Prose contract:
+`../skills/agent-project-bootstrap/references/capability-rules.md`.
+
 **Fail-closed but not brick:** unreadable persona file / malformed stdin →
 DENY with actionable stderr. Escape hatch: `BARON_GUARD_OVERRIDE=<reason>`
 allows the call BUT appends timestamp/tool/target/reason to
@@ -218,6 +230,39 @@ stays visible, just not alarm-red. **Expiry keeps waivers honest:** an expired
 waiver stops matching (the red resurfaces) and is itself reported as an
 `expired-waiver` warn; malformed entries are reported, never silently dropped.
 
+### `baron hydrate pydantic-ai --persona-file F [--out agent_setup.py]`
+
+Emit a ready-to-edit bootstrap script hydrating one persona onto
+**pydantic-ai** (the fourth runtime adapter,
+`../skills/agent-project-bootstrap/assets/collab-repo/adapters/pydantic-ai/HYDRATE.md`).
+
+```bash
+baron hydrate pydantic-ai --persona-file agents/fern/persona.yaml --out agent_setup.py
+```
+
+The emitted script imports `baron.runtimes.pydantic_ai.build_agent` and
+carries a model placeholder (`"test"` — pydantic-ai's offline TestModel —
+until you pick a real model). Emission needs only baron; **running** it needs
+the optional extra:
+
+```bash
+pip install 'baron-cli[pydantic-ai]'   # pins pydantic-ai-harness>=0.10,<0.11
+                                       #      + pydantic-ai-slim>=2.14.1,<3
+```
+
+`build_agent(persona_file, collab_root=None, model=...)` returns a live
+`pydantic_ai.Agent`: instructions composed from the persona spec; harness
+`FileSystem` scoped per write verbs (natively read-only when the persona holds
+no write verb); harness `Shell` only when a shell-granting verb is allowed
+(with test runners denied when `run_tests` is denied); and an in-process guard
+capability (`before_tool_execute` + `ModelRetry` veto — the documented
+interception seam) consuming the same `capability-rules.v1.yaml` as
+`baron guard`, which makes the five guard-covered sub-tool denials natively
+**enforced** on this runtime. Without the extra, importing
+`baron.runtimes.pydantic_ai` raises a clean ImportError with these install
+instructions. Verified against pydantic-ai-harness 0.10.0 +
+pydantic-ai-slim 2.16.0 (2026-07-23).
+
 ## Forges
 
 `src/baron/forge/` holds a small `Protocol` (`base.py`) with one built-in
@@ -236,4 +281,10 @@ The suite includes the capability-vocabulary drift guard, a synthetic divergent
 git topology reproducing the 2026-07-22 triple-stranding incident classes, the
 ledger push-rejection race test, subprocess-driven guard hook tests (synthetic
 PreToolUse JSON on stdin), a recorded fake forge for the lock lifecycle, a real
-two-persona worktree fixture, and the waiver downgrade/expiry cases.
+two-persona worktree fixture, the waiver downgrade/expiry cases, the
+capability-rules artifact tests (packaged + versioned, verb set ≡ the frozen
+vocabulary, guard-consumes-the-data mutation test), and the pydantic-ai
+adapter tests (offline TestModel/FunctionModel: capability omission, write
+scoping, a scripted-and-vetoed `git push origin main`, the clean import-error
+path). The dev dependency group repeats the pydantic-ai extra's pins so those
+tests run for real.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-Refinements to the multi-agent pattern emitted by this skill are welcome. Pattern evolution is governed by the ADR process (`docs/adr/`); see [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for the v1.0 direction (runtime-agnostic spec + adapters for Claude Code, code-puppy, and a generic Tier-1 fallback).
+Refinements to the multi-agent pattern emitted by this skill are welcome. Pattern evolution is governed by the ADR process (`docs/adr/`); see [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for the v1.0 direction (runtime-agnostic spec + adapters — Claude Code, code-puppy, pydantic-ai, and a generic Tier-1 fallback as of v1.6).
 
 If you want to explore a fundamentally different vault integration (e.g. non-Obsidian), fork this and publish a separate skill rather than expanding this one's scope.
 
@@ -24,7 +24,7 @@ python3 tests/bi_runtime_accept.py
 python3 tests/lint_repo.py
 ```
 
-The acceptance harness parses the machine-readable capability maps in the adapters' `HYDRATE.md` files and validates that one `persona.yaml` hydrates to an equivalent behavior contract on every adapter (Claude Code, code-puppy, generic) with consistent enforcement claims. The lint catches unfilled placeholders, dead relative links, fixture-name leaks, and plugin/SKILL version drift. CI (`.github/workflows/ci.yml`) runs both on every push and PR.
+The acceptance harness parses the machine-readable capability maps in the adapters' `HYDRATE.md` files and validates that one `persona.yaml` hydrates to an equivalent behavior contract on every adapter (Claude Code, code-puppy, pydantic-ai, generic) with consistent enforcement claims. The lint catches unfilled placeholders, dead relative links, fixture-name leaks, and plugin/SKILL version drift. CI (`.github/workflows/ci.yml`) runs both on every push and PR. PRs touching `cli/` (baron, including the capability-rules artifact and the runtime hydrators) also run `uv run --project cli pytest cli/tests`.
 
 ## Documentation is part of every PR
 

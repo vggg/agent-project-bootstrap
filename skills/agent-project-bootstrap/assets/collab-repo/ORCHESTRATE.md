@@ -30,9 +30,9 @@ collab/
   findings/README.md
   canon/              # the runtime-neutral spec (see 2a) — so future joiners can resolve it
     START.md  ORCHESTRATE.md  PARTICIPATE.md
-    capability-vocab.v1.md  persona.schema.md  manifest.schema.md
+    capability-vocab.v1.md  capability-rules.md  persona.schema.md  manifest.schema.md
   adapters/           # per-runtime HYDRATE files (see 2a)
-    claude/HYDRATE.md  code-puppy/HYDRATE.md  generic/HYDRATE.md
+    claude/HYDRATE.md  code-puppy/HYDRATE.md  pydantic-ai/HYDRATE.md  generic/HYDRATE.md
   agents/<slug>/persona.yaml   # one per persona (canon/persona.schema.md)
 ```
 
@@ -43,9 +43,10 @@ files that don't exist. So copy the neutral spec into the new repo, from your bo
 (this skill's `assets/collab-repo/` + `references/`):
 
 - `canon/` ← the three entrypoints (`START.md`, `ORCHESTRATE.md`, `PARTICIPATE.md`) **and** the
-  three canon refs (`capability-vocab.v1.md`, `persona.schema.md`, `manifest.schema.md`).
-- `adapters/` ← `adapters/{claude,code-puppy,generic}/HYDRATE.md` (carry all three so the project
-  is portable across runtimes; `generic` is the mandatory Tier-1 fallback).
+  four canon refs (`capability-vocab.v1.md`, `capability-rules.md`, `persona.schema.md`,
+  `manifest.schema.md`).
+- `adapters/` ← `adapters/{claude,code-puppy,pydantic-ai,generic}/HYDRATE.md` (carry all four so
+  the project is portable across runtimes; `generic` is the mandatory Tier-1 fallback).
 
 These files are runtime-neutral and versioned — copy them verbatim; do not hand-edit per project.
 

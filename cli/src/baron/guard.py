@@ -37,6 +37,14 @@ allows the call BUT appends a line to ``.baron/guard-override.log`` — a
 TRACKED file, deliberately not gitignored, so overrides surface in diffs and
 reviews. An override is expected to be turned into a ``_handoff/`` explaining
 why the capability boundary was crossed.
+
+Policy source: the verb→enforcement rule table (command patterns, file-op
+scoping semantics, ambiguity policy) is NOT hardcoded here — it is loaded
+from the packaged, versioned artifact ``data/capability-rules.v1.yaml`` via
+:mod:`baron.rules` (ADR-004 addendum §4.1). This module supplies the
+*mechanics* (shell splitting, refspec resolution, branch lookups, the hook
+I/O contract); the rules artifact supplies the *policy* every consumer —
+this hook, the pydantic-ai adapter, future runtime adapters — must share.
 """
 
 from __future__ import annotations
@@ -52,6 +60,7 @@ import yaml
 
 from . import clock
 from .gitutil import default_branch, git, is_git_repo
+from .rules import CapabilityRules, RulesError, load_rules
 
 OVERRIDE_ENV = "BARON_GUARD_OVERRIDE"
 PERSONA_ENV = "BARON_PERSONA_FILE"
@@ -61,13 +70,17 @@ OVERRIDE_LOG = PurePosixPath(".baron/guard-override.log")
 
 WRITE_TOOLS = ("Edit", "Write", "NotebookEdit")
 
-#: Path components every persona may always write: _handoff/ is how personas
-#: report and coordinate — gating it would brick the coordination substrate.
-UNIVERSAL_WRITE_COMPONENTS = ("_handoff",)
-
 
 class GuardError(RuntimeError):
     """Guard could not evaluate the call — treated as a deny (fail closed)."""
+
+
+def _rules() -> CapabilityRules:
+    """The packaged capability rules; a broken artifact fails closed."""
+    try:
+        return load_rules()
+    except RulesError as exc:
+        raise GuardError(str(exc)) from exc
 
 
 # --- persona --------------------------------------------------------------------------
@@ -184,11 +197,6 @@ def _tokens(segment: str) -> list[str]:
 
 _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
-#: git global options that consume the next token.
-_GIT_VALUE_OPTS = ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path")
-#: ``git push`` options that consume the next token.
-_PUSH_VALUE_OPTS = ("--repo", "--receive-pack", "--exec", "-o", "--push-option")
-
 
 def _current_branch(repo: Path) -> str | None:
     if not repo.is_dir():
@@ -217,24 +225,30 @@ def _default_branch(repo: Path) -> str | None:
     return default_branch(repo)
 
 
-def _analyze_push(args: list[str], repo: Path) -> tuple[set[str], list[str]]:
-    """Map a ``git push`` argument list to capability verbs + inference notes."""
+def _analyze_push(
+    args: list[str], repo: Path, rules: CapabilityRules
+) -> tuple[set[str], list[str]]:
+    """Map a ``git push`` argument list to capability verbs + inference notes.
+
+    The patterns (force flags, all-branch flags, value options, fallback
+    default-branch names) come from the capability-rules artifact; this
+    function supplies only the parsing mechanics.
+    """
     verbs: set[str] = set()
     notes: list[str] = []
     positionals: list[str] = []
     i = 0
     while i < len(args):
         arg = args[i]
-        if (
-            arg in ("--force", "-f", "--force-if-includes")
-            or arg.startswith("--force-with-lease")
+        if arg in rules.push_force_flags or arg.startswith(
+            tuple(rules.push_force_flag_prefixes)
         ):
-            verbs.add("force_push")
+            verbs.add(rules.push_force_verb)
             notes.append(f"force flag `{arg}`")
-        elif arg in ("--all", "--branches", "--mirror"):
-            verbs.add("push_main")
+        elif arg in rules.push_all_branch_flags:
+            verbs.add(rules.push_all_branches_verb)
             notes.append(f"`{arg}` includes the default branch")
-        elif arg in _PUSH_VALUE_OPTS:
+        elif arg in rules.push_value_options:
             i += 1
         elif arg.startswith("-"):
             pass
@@ -247,22 +261,24 @@ def _analyze_push(args: list[str], repo: Path) -> tuple[set[str], list[str]]:
     if not refspecs:
         # Bare `git push` (or `git push <remote>`): destination is the current
         # branch's upstream / push.default. Resolve what we can; when nothing
-        # resolves, CONSERVATIVELY infer push_main (documented parsing rule).
+        # resolves, CONSERVATIVELY infer push_main (the artifact's
+        # ambiguity_policy: conservative-deny).
         dst = _upstream_branch(repo) or _current_branch(repo)
         if dst is None or default is None:
-            verbs.add("push_main")
+            verbs.add(rules.push_default_branch_verb)
             notes.append(
                 "no refspec and the target branch is undeterminable — "
-                "conservatively inferred push_main"
+                f"conservatively inferred {rules.push_default_branch_verb}"
             )
         elif dst == default:
-            verbs.add("push_main")
+            verbs.add(rules.push_default_branch_verb)
             notes.append(f"no refspec; current branch targets the default branch '{default}'")
+    prefix = rules.push_plus_refspec_prefix
     for spec in refspecs:
-        if spec.startswith("+"):  # +refspec is a force push
-            verbs.add("force_push")
-            notes.append(f"`+` refspec `{spec}`")
-            spec = spec.lstrip("+")
+        if spec.startswith(prefix):  # +refspec is a force push
+            verbs.add(rules.push_force_verb)
+            notes.append(f"`{prefix}` refspec `{spec}`")
+            spec = spec.lstrip(prefix)
         dst = spec.split(":", 1)[1] if ":" in spec else spec
         if dst.startswith("refs/heads/"):
             dst = dst[len("refs/heads/") :]
@@ -270,10 +286,10 @@ def _analyze_push(args: list[str], repo: Path) -> tuple[set[str], list[str]]:
             dst = _current_branch(repo) or "HEAD"
         if default is not None:
             if dst == default:
-                verbs.add("push_main")
+                verbs.add(rules.push_default_branch_verb)
                 notes.append(f"refspec targets the default branch '{default}'")
-        elif dst in ("main", "master", "HEAD"):
-            verbs.add("push_main")
+        elif dst in rules.push_default_branch_fallbacks:
+            verbs.add(rules.push_default_branch_verb)
             notes.append(
                 f"origin default branch undeterminable; `{dst}` conservatively "
                 "treated as the default branch"
@@ -281,17 +297,18 @@ def _analyze_push(args: list[str], repo: Path) -> tuple[set[str], list[str]]:
     return verbs, notes
 
 
-def _analyze_merge(repo: Path) -> tuple[set[str], list[str]]:
+def _analyze_merge(repo: Path, rules: CapabilityRules) -> tuple[set[str], list[str]]:
     """``git merge`` while ON the default branch lands commits on it directly."""
+    verb = rules.merge_on_default_branch_verb
     current = _current_branch(repo)
     default = _default_branch(repo)
     if current is None or default is None:
-        return {"push_main"}, [
+        return {verb}, [
             "cannot determine the current/default branch for `git merge` — "
             "conservatively treated as a merge into the default branch"
         ]
     if current == default:
-        return {"push_main"}, [
+        return {verb}, [
             f"`git merge` while on the default branch '{default}' lands commits on it"
         ]
     return set(), []
@@ -303,6 +320,7 @@ def evaluate_bash(command: str, cwd: Path, persona: GuardPersona) -> Decision:
     Non-git/gh commands pass — guard governs capability verbs, not general
     shell (an allowlist is the Tier-3 adapter's job, not this hook's).
     """
+    rules = _rules()
     required: dict[str, list[str]] = {}
     for segment in _split_shell(command):
         tokens = _tokens(segment)
@@ -318,7 +336,7 @@ def evaluate_bash(command: str, cwd: Path, persona: GuardPersona) -> Decision:
             i = 1
             while i < len(tokens):
                 tok = tokens[i]
-                if tok in _GIT_VALUE_OPTS:
+                if tok in rules.git_global_value_options:
                     if tok == "-C" and i + 1 < len(tokens):
                         candidate = Path(tokens[i + 1])
                         repo = candidate if candidate.is_absolute() else cwd / candidate
@@ -331,19 +349,23 @@ def evaluate_bash(command: str, cwd: Path, persona: GuardPersona) -> Decision:
                 args = tokens[i + 1 :]
                 break
             if sub == "push":
-                verbs, notes = _analyze_push(args, repo)
+                verbs, notes = _analyze_push(args, repo, rules)
             elif sub == "merge":
-                verbs, notes = _analyze_merge(repo)
+                verbs, notes = _analyze_merge(repo, rules)
             else:
                 verbs, notes = set(), []
             for verb in verbs:
                 required.setdefault(verb, []).extend(notes)
         elif prog == "gh":
             rest = [t for t in tokens[1:] if not t.startswith("-")]
+            sub_path = list(rules.gh_pr_merge_subcommand)
+            n = len(sub_path)
             if any(
-                rest[i : i + 2] == ["pr", "merge"] for i in range(len(rest) - 1)
+                rest[i : i + n] == sub_path for i in range(len(rest) - n + 1)
             ):  # tolerate global flags with values before the subcommand
-                required.setdefault("merge_pr", []).append("`gh pr merge`")
+                required.setdefault(rules.gh_pr_merge_verb, []).append(
+                    f"`gh {' '.join(sub_path)}`"
+                )
 
     missing = [v for v in sorted(required) if not persona.grants(v)]
     if not missing:
@@ -378,20 +400,22 @@ def evaluate_write(
             (),
             f"{tool_name} call carries no file_path/notebook_path — fail closed",
         )
+    rules = _rules()
     path = Path(str(raw))
     if not path.is_absolute():
         path = cwd / path
     parts = Path(os.path.normpath(path)).parts
 
-    # 1. Universally writable zones: _handoff/ is always allowed.
-    if any(c in parts for c in UNIVERSAL_WRITE_COMPONENTS):
+    # 1. Universally writable zones (rules artifact): _handoff/ is how
+    #    personas report and coordinate — gating it would brick the substrate.
+    if any(c in parts for c in rules.universal_write_components):
         return ALLOW
 
     # 2. Another persona's spec dir (agents/<other-slug>/...) needs
     #    edit_other_personas; a persona's OWN agents/<slug>/ dir is its own
     #    surface (COORDINATION.md Owner row) and always writable.
-    if "agents" in parts:
-        idx = parts.index("agents")
+    if rules.spec_dir_component in parts:
+        idx = parts.index(rules.spec_dir_component)
         if idx + 2 <= len(parts) - 1:  # there is a slug dir AND a file below it
             owner = parts[idx + 1]
             if owner == persona.slug:
@@ -400,7 +424,8 @@ def evaluate_write(
                 return Decision(
                     False,
                     ("edit_other_personas",),
-                    f"path is under another persona's spec dir (agents/{owner}/) and "
+                    "path is under another persona's spec dir "
+                    f"({rules.spec_dir_component}/{owner}/) and "
                     "`edit_other_personas` is not granted",
                 )
 
@@ -431,7 +456,7 @@ def evaluate_write(
         ("write_code", "write_path"),
         "persona lacks `write_code` and the path is outside its declared "
         f"write_path scopes [{scopes}] and the universal zones "
-        f"({', '.join(UNIVERSAL_WRITE_COMPONENTS)}/)",
+        f"({', '.join(rules.universal_write_components)}/)",
     )
 
 

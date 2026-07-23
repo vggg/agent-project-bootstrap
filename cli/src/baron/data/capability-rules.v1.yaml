@@ -1,0 +1,150 @@
+# capability-rules v1 — the runtime-agnostic verb→enforcement rule table.
+#
+# THE single source for how the frozen 10-verb capability vocabulary
+# (skills/agent-project-bootstrap/references/capability-vocab.v1.md) maps onto
+# concrete, deterministically-checkable operations. Consumers (baron guard's
+# Claude Code PreToolUse hook, the pydantic-ai runtime adapter's in-process
+# interceptor, future runtime adapters) MUST load this artifact rather than
+# restate the patterns — see references/capability-rules.md in the skill.
+#
+# Shipped as baron package data (cli/src/baron/data/, via importlib.resources)
+# so every consumer that has baron installed has the rules, versioned in
+# lock-step with the guard that interprets them (ADR-004 addendum §4.1).
+#
+# Versioning: rules_version bumps on any semantic change; additions of new
+# detection rules bump it too (a consumer must not silently interpret rules it
+# does not understand).
+
+rules_version: 1
+vocabulary: capability-vocab.v1
+
+# On ambiguity (e.g. a bare `git push` whose target branch cannot be resolved)
+# a consumer assumes the enforcement-relevant verb and denies personas that
+# lack it, naming the inference in the denial reason. Personas holding the
+# verb always pass. (ADR-004 §2.2.)
+ambiguity_policy: conservative-deny
+
+# One entry per frozen v1 verb — no extras, no gaps (test-enforced against
+# baron.schemas.CAPABILITY_VERBS).
+#   class:     enforceability class from the vocabulary (whole-tool | sub-tool)
+#   detection: none | command | file-op — what a rule-consuming guard parses
+#   notes:     the honest scope/limits of the rule
+verbs:
+  read_code:
+    class: whole-tool
+    detection: none
+    notes: >-
+      Whole-tool: runtimes enforce a denial by omitting read tools entirely.
+      No command/file-op parsing needed or defined.
+  read_collab:
+    class: whole-tool
+    detection: none
+    notes: >-
+      Whole-tool: same as read_code — enforced by tool omission, not parsing.
+  write_code:
+    class: whole-tool
+    detection: file-op
+    notes: >-
+      Whole-tool where no other allowed verb grants write tools; when write
+      tools remain granted (e.g. write_path allowed), a write_code denial is
+      decided by the file-op scoping rules below: without write_code only the
+      persona's declared write_path scopes and the universal zones are
+      writable.
+  write_path:
+    class: sub-tool
+    detection: file-op
+    notes: >-
+      Parametric (scopes are data, not vocabulary). Denied scopes always block
+      — even when write_code is granted. Allowed scopes only matter when
+      write_code is absent. See file_ops below for the precedence order.
+  open_pr:
+    class: sub-tool
+    detection: none
+    notes: >-
+      Deliberately NOT parsed (ADR-004 §2.2): denials stay instruction-only.
+      Add detection on observed need only (vocabulary design rule 4).
+  run_tests:
+    class: sub-tool
+    detection: none
+    notes: >-
+      Deliberately NOT parsed (ADR-004 §2.2): denials stay instruction-only.
+      A runtime adapter MAY additionally inform its shell allow/deny lists
+      from this verb, but that is adapter policy, not a rule defined here.
+  merge_pr:
+    class: sub-tool
+    detection: command
+    notes: >-
+      Matched by the gh.pr_merge rule below. Merging via the forge web UI is
+      out of any guard's reach — the rule covers the CLI surface only.
+  push_main:
+    class: sub-tool
+    detection: command
+    notes: >-
+      Matched by git.push default-branch targeting and git.merge on the
+      default branch. Conservative on ambiguity (see ambiguity_policy).
+  force_push:
+    class: sub-tool
+    detection: command
+    notes: >-
+      Matched by git.push force flags and the `+` refspec prefix.
+  edit_other_personas:
+    class: sub-tool
+    detection: file-op
+    notes: >-
+      Path rule: writes under another persona's spec dir
+      (<spec_dir_component>/<other-slug>/...) require this verb; a persona's
+      OWN spec dir is its own surface and always writable.
+
+# --- command detection rules (Bash / shell tools) --------------------------------------
+commands:
+  git:
+    # git global options that consume the next token (must be skipped when
+    # locating the subcommand; -C additionally re-roots repo resolution).
+    global_value_options: ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"]
+    push:
+      # `git push` options that consume the next token (skipped so their
+      # values are not mistaken for remote/refspec positionals).
+      value_options: ["--repo", "--receive-pack", "--exec", "-o", "--push-option"]
+      rules:
+        force_flags:
+          verb: force_push
+          flags: ["--force", "-f", "--force-if-includes"]
+          flag_prefixes: ["--force-with-lease"]
+        plus_refspec:
+          verb: force_push
+          prefix: "+"
+        all_branches:
+          # Pushing all branches necessarily includes the default branch.
+          verb: push_main
+          flags: ["--all", "--branches", "--mirror"]
+        default_branch_target:
+          verb: push_main
+          # When the repo's actual default branch cannot be resolved, these
+          # destination names are conservatively treated as the default
+          # branch (HEAD resolves to the current branch first, when known).
+          fallback_branches: ["main", "master", "HEAD"]
+    merge:
+      rules:
+        on_default_branch:
+          # `git merge` while ON the default branch lands commits on it
+          # directly — same capability as pushing to it.
+          verb: push_main
+  gh:
+    rules:
+      pr_merge:
+        verb: merge_pr
+        subcommand: ["pr", "merge"]
+
+# --- file-operation scoping rules (write tools) ----------------------------------------
+# Precedence (first match wins), applied to the normalized target path:
+#   1. universal_write_components — always writable (_handoff/ is how personas
+#      report and coordinate; gating it would brick the substrate).
+#   2. spec-dir rule — <spec_dir_component>/<slug>/<file...>: own slug always
+#      writable; another slug requires edit_other_personas.
+#   3. denied write_path scopes — always block (even with write_code granted).
+#   4. write_code granted — general writes allowed.
+#   5. allowed write_path scopes — the only remaining writable paths; anything
+#      else is denied (conservative default).
+file_ops:
+  universal_write_components: ["_handoff"]
+  spec_dir_component: "agents"

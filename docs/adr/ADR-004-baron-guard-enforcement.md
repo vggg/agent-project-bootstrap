@@ -98,3 +98,58 @@ adapters are unchanged.
   matched tool call.
 - The capability vocabulary is untouched — the verbs and their *classes* are unchanged;
   what changed is what the Claude adapter can honestly claim about denial enforcement.
+
+## 4. Addendum (2026-07-23, v1.6.0): the rules artifact + the pydantic-ai adapter
+
+### §4.1 — The rule table is externalized as versioned package data
+
+Guard's policy — the §2.2 command patterns, the write-tool scoping semantics, the
+conservative-deny ambiguity rule — moves out of `guard.py` into a machine-readable
+artifact, **`cli/src/baron/data/capability-rules.v1.yaml`** (`rules_version: 1`), loaded
+via `importlib.resources` (`baron.rules.load_rules()`). `guard.py` keeps the *mechanics*
+(shell splitting, refspec resolution, branch lookups, the hook I/O contract); every
+pattern constant comes from the artifact. Behavior is identical — the guard test suite
+passed unchanged across the refactor — and a missing/unparseable/unsupported-version
+artifact fails CLOSED, consistent with §2.3.
+
+**Placement rationale (why baron package data, not the collab-repo template or the skill
+references):** the rules are only meaningful to something that *enforces* them; every
+current enforcer (this hook, the pydantic-ai hydrator below) already ships in baron, so
+packaging the rules as baron data versions the policy in lock-step with the code that
+interprets it. A copy emitted into each collab repo would be one more artifact to drift
+(the F4 lesson), and runtimes without baron get nothing from a rules file they have no
+interpreter for — they keep instruction-only sub-tool denials exactly as before. The
+prose contract for consumers lives in the skill
+(`references/capability-rules.md`); the vocabulary itself stays frozen and separate.
+
+### §4.2 — pydantic-ai: the first adapter with natively-`enforced` sub-tool denials
+
+The new pydantic-ai runtime adapter (`adapters/pydantic-ai/HYDRATE.md`; hydrator
+`baron.runtimes.pydantic_ai.build_agent`, extra `baron-cli[pydantic-ai]` pinned to the
+verified `pydantic-ai-harness>=0.10,<0.11` + `pydantic-ai-slim>=2.14.1,<3`) enforces the
+same five sub-tool denials through the runtime's documented in-process interception seam:
+a capability's `before_tool_execute` hook, where raising `ModelRetry` skips execution and
+feeds the reason to the model. The guard capability evaluates every shell command and
+file write through `baron.guard`'s evaluators — the SAME rules artifact — so decisions
+are identical across runtimes by construction. Implemented against the stable documented
+capability/hook interface only; deliberately NOT against any third-party guard add-on
+package.
+
+Consequence for §2.4's tier naming: this adapter's sub-tool rows claim plain
+**`enforced`**, unqualified — the qualifier exists on Claude because the external hook
+degrades to instructed when baron is missing on the machine; in-process interception
+cannot be absent from an agent built via `build_agent` (an agent built WITHOUT the
+hydrator is simply not this adapter's product — Tier-1 rules apply).
+`tests/bi_runtime_accept.py` encodes both allowances per-adapter and TIGHTENS the old
+rule: guard-enforcement claims (either form) are accepted only on the five
+rules-covered verbs — never on `open_pr`/`run_tests` rows. The whole-tool story is
+unchanged: capability omission (no shell verbs → no Shell capability; no write verbs →
+a natively read-only FileSystem via `protected_patterns`).
+
+**Fit-analysis divergences found against the real APIs (recorded per the honesty rule):**
+the harness `FileSystem` has no `readonly` flag — native read-only is expressed as
+`protected_patterns=['*', '**/*']` (protected paths reject writes, verified); the harness
+`Shell` documents no per-command callback — interception lives at the pydantic-ai
+capability layer (`before_tool_execute`), not inside Shell; and `TestModel` cannot script
+specific tool arguments, so the blocked-push acceptance test drives a real run through
+`FunctionModel` (equally offline) and unit-tests the interceptor directly.

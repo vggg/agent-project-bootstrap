@@ -11,6 +11,7 @@ Look up your adapter at `adapters/<runtime>/HYDRATE.md`. Known runtime keys (v1)
 |---|---|---|
 | code-puppy (work) | `code-puppy` | `adapters/code-puppy/HYDRATE.md` |
 | Claude Code (home) | `claude` | `adapters/claude/HYDRATE.md` |
+| pydantic-ai (+ harness) | `pydantic-ai` | `adapters/pydantic-ai/HYDRATE.md` |
 | anything else | `generic` | `adapters/generic/HYDRATE.md` (always-works Tier-1 fallback) |
 
 If your runtime has no adapter, use `generic`.

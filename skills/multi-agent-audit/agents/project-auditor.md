@@ -47,6 +47,7 @@ In one batch, ask the user to provide:
 6. **Output format** — markdown only, or markdown + HTML dashboard. Default: markdown only.
 7. **Per-persona scorecards** — yes/no. Default: yes if ≥3 personas detected.
 8. **Snapshot output location** — confirm the default per `SKILL.md § Output location convention`, or accept an override. Must be outside the audited repos.
+9. **Telemetry export (optional)** — is an exported OpenTelemetry trace/event FILE available (Claude Code OTel export, Logfire span export, Phoenix span export)? If yes, accept the file path(s) and run telemetry mode per `SKILL.md § Telemetry mode` — it upgrades session-level metrics (including the intervention-tax inputs) from `inferred` to `measured`. Files only: never query a live telemetry endpoint, never accept an API key or read token. Telemetry sharpens the ACTUAL lens only — the dual-lens drift analysis and the INTENDED lens (declared docs) are still mandatory. Default: no export; the artifact-based audit is the zero-infra default.
 
 Wait for the user's answers before any read operations against the audited project. Once confirmed, proceed end-to-end through Steps 0 → 4 of the skill without further interruption unless you hit an unrecoverable data gap (e.g., `gh auth` fails).
 

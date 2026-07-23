@@ -8,27 +8,58 @@ lives in [`docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md`](docs/adr
 
 Per [ADR-003](docs/adr/ADR-003-baron-cli.md) / [ADR-004](docs/adr/ADR-004-baron-guard-enforcement.md):
 the coordination conventions ADR-002 promoted are being mechanized as the `baron` CLI
-(`cli/`, typer+pyyaml only, markdown/git substrate stays the only database). M1–M6-tooling
-+ waivers shipped in **v1.5.0**; remaining:
+(`cli/`, typer+pyyaml core; the pydantic-ai runtime adapter is a pinned optional extra).
+M1–M6-tooling + waivers shipped in **v1.5.0**; the rules artifact + pydantic-ai adapter
+in **v1.6.0**; remaining:
 
-- [ ] **Live worktree migration of the pilot workspace** (the runbook shipped:
-  `docs/worktree-migration.md`; executing it on the real clone-per-persona workspace is
-  a separate, human-scheduled step — see `docs/BACKLOG.md`).
+- [x] **Live worktree migration of the pilot workspace** — executed 2026-07-23 on
+  BaddieAnalyzer (per-worktree identities, symlink pattern, old clones parked;
+  `baron status` 0-red on the new topology). The runbook's identity + symlink steps
+  came out of this run.
+- [x] **multi-agent-audit telemetry mode (v1.4)** — OTel trace-export ingestion
+  (Claude Code / Logfire / Phoenix export files; stdlib-only, files-only) with
+  source-tagged snapshot merge; artifact-based audit remains the zero-infra default.
 - [ ] **Phase-gate audit** — re-run `multi-agent-audit` against the pilot with guard/lock
   live, to measure whether operational fidelity moves off 0.53 now that the rules are
   mechanisms.
 - [ ] **Merger precondition verification** + guard coverage growth — `docs/BACKLOG.md`.
+- [ ] **pydantic-ai adapter field validation** — the adapter is test-proven offline
+  (v1.6.0); running a real persona on a real project on this runtime is the ADR-001
+  acceptance bar for any adapter — `docs/BACKLOG.md`.
 
 ## Shipped
 
 | Version | Date | Summary (details in `CHANGELOG.md`) |
 |---|---|---|
-| **v1.5.0** | 2026-07-23 | baron CLI: M1–M3 (validate/status/ledgers-handoffs-index, first released here) + M4 `baron guard` PreToolUse enforcement (ADR-004) + M5 `baron lock` PR-as-lock + lock-guard CI template + M6 worktree tooling + status waivers. See below. |
+| **v1.6.0** | 2026-07-23 | Capability-rules artifact (`capability-rules.v1.yaml`, single policy source for guard + adapters) + AGENTS.md emission (generic adapter) + the pydantic-ai runtime adapter (4th runtime; sub-tool denials natively enforced in-process) with working hydrator, `baron hydrate pydantic-ai`, and the `baron-cli[pydantic-ai]` extra. See below. |
+| v1.5.0 | 2026-07-23 | baron CLI: M1–M3 (validate/status/ledgers-handoffs-index, first released here) + M4 `baron guard` PreToolUse enforcement (ADR-004) + M5 `baron lock` PR-as-lock + lock-guard CI template + M6 worktree tooling + status waivers. |
 | v1.4.0 | 2026-07-22 | One front door + legacy quarantine + July-2026 ways-of-working (ADR-002) + archetype parity + real CI. |
 | v1.3.0 | 2026-06-12 | `multi-agent-audit` v1.3 — closed all 13 first-real-audit findings + timeline feature. |
 | v1.2.0 | 2026-06-12 | `multi-agent-audit` sister skill + `project-auditor` subagent. |
 | v1.1.x | 2026-06-04/08 | Claude Tier-3 subagent rendering; docs reconciled to the runtime-agnostic architecture. |
 | v1.0.x | 2026-06-03 | The runtime-agnostic milestone (ADR-001 §10 executed; all close-out items done). |
+
+## v1.6.0 — shipped 2026-07-23
+
+The fourth-runtime release (rules artifact + AGENTS.md emission + pydantic-ai adapter;
+ADR-004 §4 addendum).
+
+- [x] **capability-rules.v1.yaml** — the verb→enforcement rule table externalized as
+  versioned baron package data (`cli/src/baron/data/`, loader `baron/rules.py`); guard
+  refactored to consume it with identical behavior (19 guard tests unchanged); new
+  `test_rules.py` (verb set ≡ frozen vocabulary; guard follows the data; fail-closed);
+  prose contract in `references/capability-rules.md`.
+- [x] **AGENTS.md emission** — generic adapter Tier-1 hydration emits a
+  generated-do-not-hand-edit `AGENTS.md` (identity, grants AND denials imperative,
+  ritual, collab pointers; honest instructed-only note); claude adapter notes CLAUDE.md
+  stays native, AGENTS.md optional/additive.
+- [x] **pydantic-ai adapter** — `adapters/pydantic-ai/HYDRATE.md` (capability-map:v1,
+  all 10 verbs; five guard-covered sub-tool rows natively `enforced` via in-process
+  interception; whole-tool via capability omission); working hydrator
+  `baron.runtimes.pydantic_ai.build_agent`; `baron hydrate pydantic-ai`;
+  `baron-cli[pydantic-ai]` extra pinned to the verified versions (harness 0.10.0 /
+  slim 2.16.0); offline tests (TestModel/FunctionModel, no keys);
+  `tests/bi_runtime_accept.py` sweeps 4 adapters with tightened tier rules.
 
 ## v1.5.0 — shipped 2026-07-23
 

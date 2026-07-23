@@ -7,4 +7,4 @@ wiki/status.md). It never introduces another store, and every file it writes sta
 fully human/agent-legible.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"

@@ -1,0 +1,249 @@
+{
+  "_comment": "Hand-crafted OTLP-JSON fixture for test_ingest_otel.py — two Claude Code sessions (sess-a, sess-b) with interaction/tool/llm spans plus user_prompt / api_request / tool_result log events. Attribute names follow https://code.claude.com/docs/en/monitoring-usage (trace spans beta + events). Timestamps around 2025-07-01T10:00Z epoch 1751364000.",
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          { "key": "service.name", "value": { "stringValue": "claude-code" } },
+          { "key": "user.email", "value": { "stringValue": "vikram@example.invalid" } }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": { "name": "com.anthropic.claude_code" },
+          "spans": [
+            {
+              "traceId": "aaaa000000000000000000000000000a",
+              "spanId": "0000000000000i01",
+              "name": "claude_code.interaction",
+              "startTimeUnixNano": "1751364000000000000",
+              "endTimeUnixNano": "1751364120000000000",
+              "attributes": [
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "interaction.sequence", "value": { "intValue": "1" } },
+                { "key": "user_prompt_length", "value": { "intValue": "42" } }
+              ]
+            },
+            {
+              "traceId": "aaaa000000000000000000000000000a",
+              "spanId": "0000000000000i02",
+              "name": "claude_code.interaction",
+              "startTimeUnixNano": "1751364180000000000",
+              "endTimeUnixNano": "1751364300000000000",
+              "attributes": [
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "interaction.sequence", "value": { "intValue": "2" } },
+                { "key": "user_prompt_length", "value": { "intValue": "18" } }
+              ]
+            },
+            {
+              "traceId": "aaaa000000000000000000000000000a",
+              "spanId": "0000000000000l01",
+              "name": "claude_code.llm_request",
+              "startTimeUnixNano": "1751364005000000000",
+              "endTimeUnixNano": "1751364015000000000",
+              "attributes": [
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "gen_ai.system", "value": { "stringValue": "anthropic" } },
+                { "key": "model", "value": { "stringValue": "claude-sonnet-4-5" } },
+                { "key": "input_tokens", "value": { "intValue": "1200" } },
+                { "key": "output_tokens", "value": { "intValue": "300" } },
+                { "key": "cache_read_tokens", "value": { "intValue": "4000" } },
+                { "key": "request_id", "value": { "stringValue": "req-1" } },
+                { "key": "workflow.run_id", "value": { "stringValue": "wf_1" } },
+                { "key": "success", "value": { "stringValue": "true" } }
+              ]
+            },
+            {
+              "traceId": "aaaa000000000000000000000000000a",
+              "spanId": "0000000000000l02",
+              "name": "claude_code.llm_request",
+              "startTimeUnixNano": "1751364185000000000",
+              "endTimeUnixNano": "1751364192000000000",
+              "attributes": [
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "gen_ai.system", "value": { "stringValue": "anthropic" } },
+                { "key": "model", "value": { "stringValue": "claude-sonnet-4-5" } },
+                { "key": "input_tokens", "value": { "intValue": "800" } },
+                { "key": "output_tokens", "value": { "intValue": "200" } },
+                { "key": "cache_read_tokens", "value": { "intValue": "0" } },
+                { "key": "request_id", "value": { "stringValue": "req-2" } },
+                { "key": "workflow.run_id", "value": { "stringValue": "wf_1" } },
+                { "key": "success", "value": { "stringValue": "true" } }
+              ]
+            },
+            {
+              "traceId": "aaaa000000000000000000000000000a",
+              "spanId": "0000000000000t01",
+              "name": "claude_code.tool",
+              "startTimeUnixNano": "1751364020000000000",
+              "endTimeUnixNano": "1751364025000000000",
+              "attributes": [
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "tool_name", "value": { "stringValue": "Bash" } },
+                { "key": "tool_use_id", "value": { "stringValue": "toolu_1" } },
+                { "key": "workflow.run_id", "value": { "stringValue": "wf_1" } }
+              ]
+            },
+            {
+              "traceId": "aaaa000000000000000000000000000a",
+              "spanId": "0000000000000t02",
+              "name": "claude_code.tool",
+              "startTimeUnixNano": "1751364030000000000",
+              "endTimeUnixNano": "1751364032000000000",
+              "status": { "code": 2, "message": "permission denied" },
+              "attributes": [
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "tool_name", "value": { "stringValue": "Edit" } },
+                { "key": "tool_use_id", "value": { "stringValue": "toolu_2" } },
+                { "key": "error_type", "value": { "stringValue": "Error:EACCES" } },
+                { "key": "workflow.run_id", "value": { "stringValue": "wf_1" } }
+              ]
+            },
+            {
+              "traceId": "aaaa000000000000000000000000000a",
+              "spanId": "0000000000000t03",
+              "name": "claude_code.tool",
+              "startTimeUnixNano": "1751364040000000000",
+              "endTimeUnixNano": "1751364041000000000",
+              "attributes": [
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "tool_name", "value": { "stringValue": "Read" } },
+                { "key": "tool_use_id", "value": { "stringValue": "toolu_3" } },
+                { "key": "workflow.run_id", "value": { "stringValue": "wf_1" } }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          { "key": "service.name", "value": { "stringValue": "claude-code" } },
+          { "key": "user.email", "value": { "stringValue": "vikram@example.invalid" } }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": { "name": "com.anthropic.claude_code" },
+          "spans": [
+            {
+              "traceId": "bbbb000000000000000000000000000b",
+              "spanId": "0000000000000t04",
+              "name": "claude_code.tool",
+              "startTimeUnixNano": "1751367610000000000",
+              "endTimeUnixNano": "1751367613000000000",
+              "attributes": [
+                { "key": "session.id", "value": { "stringValue": "sess-b" } },
+                { "key": "tool_name", "value": { "stringValue": "Bash" } },
+                { "key": "tool_use_id", "value": { "stringValue": "toolu_4" } },
+                { "key": "workflow.run_id", "value": { "stringValue": "wf_2" } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          { "key": "service.name", "value": { "stringValue": "claude-code" } },
+          { "key": "user.email", "value": { "stringValue": "vikram@example.invalid" } }
+        ]
+      },
+      "scopeLogs": [
+        {
+          "scope": { "name": "com.anthropic.claude_code.events" },
+          "logRecords": [
+            {
+              "timeUnixNano": "1751364000000000000",
+              "body": { "stringValue": "claude_code.user_prompt" },
+              "attributes": [
+                { "key": "event.name", "value": { "stringValue": "claude_code.user_prompt" } },
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "prompt_length", "value": { "intValue": "42" } }
+              ]
+            },
+            {
+              "timeUnixNano": "1751364180000000000",
+              "body": { "stringValue": "claude_code.user_prompt" },
+              "attributes": [
+                { "key": "event.name", "value": { "stringValue": "claude_code.user_prompt" } },
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "prompt_length", "value": { "intValue": "18" } }
+              ]
+            },
+            {
+              "timeUnixNano": "1751367600000000000",
+              "body": { "stringValue": "claude_code.user_prompt" },
+              "attributes": [
+                { "key": "event.name", "value": { "stringValue": "claude_code.user_prompt" } },
+                { "key": "session.id", "value": { "stringValue": "sess-b" } },
+                { "key": "prompt_length", "value": { "intValue": "55" } }
+              ]
+            },
+            {
+              "timeUnixNano": "1751364015000000000",
+              "body": { "stringValue": "claude_code.api_request" },
+              "attributes": [
+                { "key": "event.name", "value": { "stringValue": "claude_code.api_request" } },
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "model", "value": { "stringValue": "claude-sonnet-4-5" } },
+                { "key": "request_id", "value": { "stringValue": "req-1" } },
+                { "key": "cost_usd_micros", "value": { "intValue": "12000" } },
+                { "key": "input_tokens", "value": { "intValue": "1200" } },
+                { "key": "cache_creation_tokens", "value": { "intValue": "50" } },
+                { "key": "duration_ms", "value": { "intValue": "10000" } }
+              ]
+            },
+            {
+              "timeUnixNano": "1751364192000000000",
+              "body": { "stringValue": "claude_code.api_request" },
+              "attributes": [
+                { "key": "event.name", "value": { "stringValue": "claude_code.api_request" } },
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "model", "value": { "stringValue": "claude-sonnet-4-5" } },
+                { "key": "request_id", "value": { "stringValue": "req-2" } },
+                { "key": "cost_usd", "value": { "doubleValue": 0.008 } },
+                { "key": "cache_creation_tokens", "value": { "intValue": "0" } },
+                { "key": "duration_ms", "value": { "intValue": "7000" } }
+              ]
+            },
+            {
+              "timeUnixNano": "1751367605000000000",
+              "body": { "stringValue": "claude_code.api_request" },
+              "attributes": [
+                { "key": "event.name", "value": { "stringValue": "claude_code.api_request" } },
+                { "key": "session.id", "value": { "stringValue": "sess-b" } },
+                { "key": "model", "value": { "stringValue": "claude-haiku-4-5" } },
+                { "key": "request_id", "value": { "stringValue": "req-3" } },
+                { "key": "input_tokens", "value": { "intValue": "500" } },
+                { "key": "output_tokens", "value": { "intValue": "100" } },
+                { "key": "cache_read_tokens", "value": { "intValue": "2000" } },
+                { "key": "cache_creation_tokens", "value": { "intValue": "0" } },
+                { "key": "cost_usd_micros", "value": { "intValue": "5000" } },
+                { "key": "duration_ms", "value": { "intValue": "4000" } },
+                { "key": "workflow.run_id", "value": { "stringValue": "wf_2" } }
+              ]
+            },
+            {
+              "timeUnixNano": "1751364025000000000",
+              "body": { "stringValue": "claude_code.tool_result" },
+              "attributes": [
+                { "key": "event.name", "value": { "stringValue": "claude_code.tool_result" } },
+                { "key": "session.id", "value": { "stringValue": "sess-a" } },
+                { "key": "tool_name", "value": { "stringValue": "Bash" } },
+                { "key": "tool_use_id", "value": { "stringValue": "toolu_1" } },
+                { "key": "success", "value": { "stringValue": "true" } },
+                { "key": "duration_ms", "value": { "intValue": "5000" } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

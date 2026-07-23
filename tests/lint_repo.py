@@ -27,7 +27,7 @@ TEMPLATE_DIRS = (
     "legacy/",
     "tests/examples/",
 )
-SKIP_DIRS = {".git", "__pycache__", ".claude", "node_modules"}
+SKIP_DIRS = {".git", "__pycache__", ".claude", "node_modules", ".venv", ".pytest_cache"}
 
 FAILURES = []
 

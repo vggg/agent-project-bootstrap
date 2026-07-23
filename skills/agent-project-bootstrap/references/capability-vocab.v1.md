@@ -87,6 +87,14 @@ The abstract->concrete mapping lives in each adapter's normalized capability map
 checked by `tests/bi_runtime_accept.py`). For code-puppy see also
 `docs/notes/code-puppy-capability-map.md`. The canon does NOT name runtime tools.
 
+**Enforcement rules note:** the machine-readable verb→enforcement rule table (command
+patterns such as "git push to the default branch → `push_main`", write-path scoping
+semantics, the conservative-deny ambiguity policy) is a separate versioned artifact,
+`cli/src/baron/data/capability-rules.v1.yaml` — see
+[`capability-rules.md`](capability-rules.md). Enforcing consumers (baron guard, runtime
+adapters) load that artifact; they never restate the patterns. This vocabulary stays
+frozen — the artifact maps it, it does not extend it.
+
 ## Changelog
 
 - **v1** (Phase 3): promoted from v0 draft. Collapsed path-scoped writes into `write_path`

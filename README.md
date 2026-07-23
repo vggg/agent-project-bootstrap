@@ -44,7 +44,7 @@ COORDINATION.md           # multi-persona protocol (hot files + lock mechanics, 
                           #   ADR rules, ticket lifecycle)
 manifest.yaml             # machine-readable project spec (repos, backlog, roster)
 canon/                    # the runtime-neutral spec, copied in so joiners can resolve it
-adapters/                 # per-runtime HYDRATE.md (claude / code-puppy / generic)
+adapters/                 # per-runtime HYDRATE.md (claude / code-puppy / pydantic-ai / generic)
 agents/
   <persona-slug>/
     persona.yaml          # CANONICAL machine truth: identity, capabilities, scope, ritual
@@ -78,8 +78,9 @@ and degrades gracefully:
 | Tier | Runtime | Mechanism | Enforcement |
 |---|---|---|---|
 | 3 | Claude Code or code-puppy | native sub-agents (Claude `.claude/agents/<slug>.md`; code-puppy JSON agents) | capabilities enforced via a tool allow-list — **whole-tool denials are real** (a read-only persona genuinely cannot write/run shell); sub-tool denials instructed |
+| 3 | pydantic-ai (+ pydantic-ai-harness) | in-process hydration: `baron.runtimes.pydantic_ai.build_agent` assembles a guarded `Agent` | whole-tool denials via capability omission; the five guard-covered **sub-tool denials natively ENFORCED** (in-process interception consuming `capability-rules.v1.yaml`) |
 | 2 | Claude Code | persistent `CLAUDE.md` | persistent session context; capabilities instructed |
-| 1 | anything | in-prompt | persona re-read each turn; self-enforced |
+| 1 | anything | in-prompt + emitted `AGENTS.md` | persona re-read each turn; self-enforced |
 
 The Claude adapter renders **either** Tier 2 **or** Tier 3, selected by a runtime-neutral
 `adapters.claude.tier` config (`auto` | `2` | `3`, default `auto`).
@@ -88,10 +89,13 @@ Key files:
 
 - `START.md` / `ORCHESTRATE.md` / `PARTICIPATE.md` — neutral entrypoints (front door + the two
   role recipes; routing is by directory state, not a human choice).
-- `adapters/{generic,code-puppy,claude}/HYDRATE.md` — per-runtime mappings (`generic` is the
-  mandatory Tier-1 fallback). Each carries a normalized, machine-readable capability map that
-  `tests/bi_runtime_accept.py` checks in CI.
-- `references/{capability-vocab.v1,persona.schema,manifest.schema}.md` — the canonical spec.
+- `adapters/{generic,code-puppy,claude,pydantic-ai}/HYDRATE.md` — per-runtime mappings
+  (`generic` is the mandatory Tier-1 fallback). Each carries a normalized, machine-readable
+  capability map that `tests/bi_runtime_accept.py` checks in CI across all four adapters.
+- `references/{capability-vocab.v1,persona.schema,manifest.schema}.md` — the canonical spec;
+  `references/capability-rules.md` documents the machine-readable enforcement-rules artifact
+  (`capability-rules.v1.yaml`, shipped as baron package data) that every enforcing consumer
+  loads instead of restating.
 - `assets/collab-repo/manifest.example.yaml` — a realistic worked example of the project spec.
 
 See [ADR-001](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md) for the full design
@@ -125,6 +129,9 @@ only database. Shipped (v1.5.0):
   (`lock-guard.yml`) fails other PRs touching a locked path.
 - `baron worktree add|list|remove` — the branch-per-persona worktree topology (one shared
   object store; migration runbook in [`docs/worktree-migration.md`](docs/worktree-migration.md)).
+- `baron hydrate pydantic-ai` — emit a ready-to-edit bootstrap script for a persona on
+  pydantic-ai; the working hydrator (`baron.runtimes.pydantic_ai.build_agent`) lives behind
+  the pinned optional extra `baron-cli[pydantic-ai]`.
 
 ```bash
 uv tool install ./cli && baron --help

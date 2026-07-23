@@ -207,9 +207,15 @@ adapters/
   generic/HYDRATE.md      ← Tier-1 fallback (MANDATORY; always present)
   code-puppy/HYDRATE.md   ← optional: persona.yaml → enforced Puppy sub-agent
   claude/HYDRATE.md       ← optional: persona.yaml → CLAUDE.md rendering
+  pydantic-ai/HYDRATE.md  ← optional: persona.yaml → in-process guarded Agent (v1.6)
   codex/HYDRATE.md        ← optional
   ...
 ```
+
+> **Current adapters (v1.6.0):** four ship today — `claude` (Tier 2/3 + the baron guard
+> hook), `code-puppy` (Tier 3), `pydantic-ai` (in-process hydration; the five
+> guard-covered sub-tool denials are natively enforced — ADR-004 addendum §4.2), and the
+> mandatory `generic` Tier-1 fallback. `codex` remains illustrative.
 
 Participant flow: read `persona.yaml` → look for `adapters/<my-runtime>/HYDRATE.md` →
 if present, follow it; else fall back to `adapters/generic/`. Adding a runtime = add a
@@ -239,6 +245,7 @@ adapters/
   generic/HYDRATE.md      ← Tier-1 fallback (mandatory)
   code-puppy/HYDRATE.md   ← optional richer mapping
   claude/HYDRATE.md
+  pydantic-ai/HYDRATE.md  ← (v1.6)
   ...
 _handoff/  decisions/  findings/  wiki/   ← unchanged patterns
 ```

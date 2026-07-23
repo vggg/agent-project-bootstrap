@@ -1,7 +1,7 @@
 ---
 name: agent-project-bootstrap
 description: Scaffold or join a runtime-agnostic multi-agent software project. Use when the user wants to set up a new multi-agent project (personas, collab repo, conventions, coordination) or join an existing one — one runtime-neutral persona.yaml hydrates working personas on any AI coding agent (Claude Code, code-puppy, ...) via per-runtime adapters.
-version: 1.5.0
+version: 1.6.0
 created: 2026-05-22
 updated: 2026-07-23
 ---
@@ -25,10 +25,11 @@ context → Tier 1 in-prompt).
 - Existing collab repo → **`assets/collab-repo/PARTICIPATE.md`** (Role 2 — join it).
 
 Concrete tool actions go through the runtime's adapter —
-`assets/collab-repo/adapters/{claude,code-puppy,generic}/HYDRATE.md` (`generic` is the
-mandatory Tier-1 fallback). The canonical contract lives in
-`references/{capability-vocab.v1,persona.schema,manifest.schema}.md`; a worked project
-spec example is at `assets/collab-repo/manifest.example.yaml`.
+`assets/collab-repo/adapters/{claude,code-puppy,pydantic-ai,generic}/HYDRATE.md`
+(`generic` is the mandatory Tier-1 fallback). The canonical contract lives in
+`references/{capability-vocab.v1,persona.schema,manifest.schema}.md` (plus
+`references/capability-rules.md` for the machine-readable enforcement-rules artifact); a
+worked project spec example is at `assets/collab-repo/manifest.example.yaml`.
 
 When invoked, read `assets/collab-repo/START.md` and follow it. Do not improvise an emit
 sequence from this file — this file only routes.

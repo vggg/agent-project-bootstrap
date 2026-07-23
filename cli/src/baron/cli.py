@@ -20,6 +20,7 @@ from . import (
     indexer,
     ledger,
     lock as lock_mod,
+    runtimes,
     status as status_mod,
     validate as validate_mod,
     waivers as waivers_mod,
@@ -358,6 +359,47 @@ def guard(
     if stderr_text:
         typer.echo(stderr_text, err=True)
     raise typer.Exit(code)
+
+
+# --- runtime hydrators ----------------------------------------------------------------
+
+hydrate_app = typer.Typer(
+    help="Hydrate a persona.yaml onto a specific runtime (adapters/<runtime>/HYDRATE.md).",
+    no_args_is_help=True,
+)
+app.add_typer(hydrate_app, name="hydrate")
+
+
+@hydrate_app.command("pydantic-ai")
+def hydrate_pydantic_ai(
+    persona_file: Path = typer.Option(
+        ..., "--persona-file", help="The persona's persona.yaml."
+    ),
+    out: Path = typer.Option(
+        Path("agent_setup.py"),
+        "--out",
+        help="Where to write the ready-to-edit bootstrap script.",
+    ),
+    collab: Path = _COLLAB_OPT,
+) -> None:
+    """Emit a ready-to-edit pydantic-ai bootstrap script for one persona.
+
+    The script imports baron.runtimes.pydantic_ai.build_agent and carries a
+    model placeholder ("test" — offline — until you pick a real model).
+    Emission needs only baron; RUNNING the script needs the optional extra
+    (pip install 'baron-cli[pydantic-ai]', pinned to the verified
+    pydantic-ai-harness range).
+    """
+    if not persona_file.is_file():
+        typer.echo(f"error: persona file not found: {persona_file}", err=True)
+        raise typer.Exit(2)
+    script = runtimes.render_pydantic_ai_bootstrap(persona_file, collab_root=collab)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(script, encoding="utf-8")
+    typer.echo(out.as_posix())
+    typer.echo(
+        "note: running it requires the extra — pip install 'baron-cli[pydantic-ai]'"
+    )
 
 
 # --- M5: lock -------------------------------------------------------------------------

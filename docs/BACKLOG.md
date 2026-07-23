@@ -53,11 +53,28 @@ PR-comment query are the seam. Also still open from the original M4+ sketch:
 
 ## Guard coverage growth (baron guard, post-ADR-004)
 
-**What:** deliberately out of the v1.5.0 guard: `open_pr`/`run_tests` denial parsing
-(rarely denied in practice; add on observed need per the vocabulary's rule 4), hook
-seams for other runtimes (code-puppy has no PreToolUse equivalent today), and the lock
-soft-timeout sweep (`COORDINATION.md` names a 24h soft timeout; `baron lock list`
-shows age — flagging expiry candidates could fold into `baron status`).
+**What:** deliberately out of the v1.5.0/v1.6.0 guard: `open_pr`/`run_tests` denial
+parsing (rarely denied in practice; add on observed need per the vocabulary's rule 4 —
+any addition now lands in `capability-rules.v1.yaml` with a `rules_version` bump, and
+every consumer picks it up), hook seams for further runtimes (pydantic-ai got its
+in-process seam in v1.6.0 — `AbstractCapability.before_tool_execute`; code-puppy still
+has no PreToolUse equivalent today), and the lock soft-timeout sweep
+(`COORDINATION.md` names a 24h soft timeout; `baron lock list` shows age — flagging
+expiry candidates could fold into `baron status`).
+
+## pydantic-ai adapter — field validation + follow-ups (post-v1.6.0)
+
+**What:** the adapter shipped test-proven offline (TestModel/FunctionModel); ADR-001's
+acceptance bar for an adapter is a REAL project on the runtime. Still open:
+
+- Run a real persona on a real project via `build_agent` (the ADR-001 §10 step-2 analog);
+  fold observed needs back into `capability-rules.v1.yaml` / the HYDRATE.md.
+- `RepoContext()` layering (auto-load an emitted `AGENTS.md`) is documented but not
+  wired into `build_agent` — add it once field use shows it earns its prompt-cache cost.
+- Pin bumps: the harness is 0.x with breaking minors allowed; on each bump of the
+  `baron-cli[pydantic-ai]` range, re-verify the `before_tool_execute`/`ModelRetry` veto
+  seam and the `FileSystem.protected_patterns` read-only behavior (both are contract
+  assumptions recorded in the ADR-004 addendum §4.2).
 
 ## Consciously deferred inside M1–M3
 

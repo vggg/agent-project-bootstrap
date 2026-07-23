@@ -10,13 +10,24 @@ build-backend = "hatchling.build"
 
 [project]
 name = "baron-cli"
-version = "0.2.0"
+version = "0.3.0"
 description = "Disciplined reader/writer over agent-project-bootstrap collab repos — the markdown/git substrate is the database."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
   "typer>=0.12",
   "pyyaml>=6.0",
+]
+
+# The pydantic-ai runtime adapter (baron.runtimes.pydantic_ai) is an OPTIONAL
+# extra: the harness is 0.x ("minor releases may include breaking changes"),
+# hence the tight upper bound. Verified against pydantic-ai-harness 0.10.0 +
+# pydantic-ai-slim 2.16.0 (2026-07-23). Without the extra, importing the
+# module raises a clean ImportError with install instructions.
+[project.optional-dependencies]
+pydantic-ai = [
+  "pydantic-ai-harness>=0.10,<0.11",
+  "pydantic-ai-slim>=2.14.1,<3",
 ]
 
 [project.scripts]
@@ -29,7 +40,13 @@ baron = "baron.cli:app"
 github = "baron.forge.github:GitHubForge"
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+# dev repeats the pydantic-ai extra's pins so `uv run --project cli pytest`
+# exercises the real adapter (the extra itself stays optional for users).
+dev = [
+  "pytest>=8.0",
+  "pydantic-ai-harness>=0.10,<0.11",
+  "pydantic-ai-slim>=2.14.1,<3",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/baron"]

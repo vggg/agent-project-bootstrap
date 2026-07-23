@@ -1,0 +1,4 @@
+{"trace_id": "tr-100", "span_id": "s1", "parent_span_id": null, "span_name": "agent run", "start_timestamp": "2026-07-02T09:00:00Z", "end_timestamp": "2026-07-02T09:10:00Z", "attributes": {"agent.name": "researcher"}}
+{"trace_id": "tr-100", "span_id": "s2", "parent_span_id": "s1", "span_name": "chat claude-sonnet-4-5", "start_timestamp": "2026-07-02T09:00:10Z", "end_timestamp": "2026-07-02T09:00:20Z", "attributes": {"gen_ai.system": "anthropic", "gen_ai.request.model": "claude-sonnet-4-5", "gen_ai.usage.input_tokens": 900, "gen_ai.usage.output_tokens": 250}}
+{"context.trace_id": "tr-100", "context.span_id": "s3", "name": "run_sql", "span_kind": "TOOL", "status_code": "ERROR", "start_timestamp": "2026-07-02T09:01:00Z", "end_timestamp": "2026-07-02T09:01:02Z", "attributes.tool.name": "run_sql"}
+{"trace_id": "tr-100", "span_id": "s4", "span_name": "user message", "start_timestamp": "2026-07-02T09:00:05Z", "attributes": {"event.name": "gen_ai.user.message"}}
