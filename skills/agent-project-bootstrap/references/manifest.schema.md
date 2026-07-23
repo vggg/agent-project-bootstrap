@@ -20,6 +20,7 @@
 | `backlog.location` | yes | str | path (for `file`) or repo/project ref (for trackers) |
 | `personas` | yes | list | roster: each entry points at a `persona.yaml` |
 | `adapters` | no | map | per-runtime adapter overrides (project defaults); runtime-neutral envelope — see below |
+| `workspace` | no | map | where persona working copies live locally (v1.2, optional) — see below |
 
 ### adapters (runtime-neutral envelope)
 
@@ -50,6 +51,32 @@ by that runtime's adapter, not by this schema. The canon defines only the SHAPE
 |---|---|---|
 | `slug` | yes | matches a `persona.yaml` slug |
 | `spec` | yes | path to the persona.yaml (relative) |
+
+### workspace (optional, v1.2)
+
+Describes where persona **working copies** live on the local machine, so tooling
+(`baron status`, ADR-003) can sweep them for divergence — the stranding classes the
+2026-07-22 badminton-analyzer incident exposed (unpushed commits, unmerged branches, an
+unpulled canonical clone). Both keys are optional and additive; paths are relative to
+`paths.root`, like `repos[].path` (F7).
+
+| Field | Req | Notes |
+|---|---|---|
+| `workspace.clones` | no | list of `{persona, path}` — one entry per persona-local clone of a project repo |
+| `workspace.worktrees_root` | no | a directory whose git-containing subdirectories are persona working copies (worktree-style layout; the topology itself is baron M6, planned) |
+
+```yaml
+workspace:
+  clones:
+    - persona: fern
+      path: ../gardenkit-fern      # fern's clone of the code repo
+    - persona: moss
+      path: ../gardenkit-moss
+  # worktrees_root: ../worktrees   # alternative: every git dir under here is swept
+```
+
+Absence means: only `repos[]` working copies are swept. This block is *local-topology*
+metadata — it never affects hydration or capability mapping.
 
 ## Example (tasklib-agents, derived from the Phase 2 dogfood)
 
@@ -96,3 +123,6 @@ adapters:                     # optional; runtime-neutral envelope
 - **v1.1** (Claude Tier-3): added the optional, runtime-neutral `adapters.<runtime>` override
   envelope. First consumer: `adapters.claude.tier`. Additive — existing manifests are
   unchanged and every adapter falls back to its own default when the block is absent.
+- **v1.2** (baron M2, ADR-003): added the optional `workspace` block
+  (`clones` / `worktrees_root`) describing local persona working copies for divergence
+  sweeps (`baron status`). Additive — existing manifests are unchanged.

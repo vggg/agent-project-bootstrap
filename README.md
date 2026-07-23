@@ -99,6 +99,24 @@ and [ADR-002](docs/adr/ADR-002-ways-of-working-2026-07.md) for the field-proven 
 coordination rules baked into the templates (single-account constraint, everything-material-
 gets-a-handoff, lock-via-open-PR + CI guard, reviewer/merger personas).
 
+## baron CLI (Phase 2, in progress)
+
+Phase 2 of the roadmap converts the coordination *conventions* above into *mechanisms*:
+**[`baron`](cli/README.md)** (`cli/`, per [ADR-003](docs/adr/ADR-003-baron-cli.md)) is a
+small typer CLI — a disciplined reader/writer over collab-repo files; the markdown/git
+substrate stays the only database. Milestones M1–M3 are in:
+
+- `baron validate` — persona.yaml / manifest.yaml against the canonical schemas, with the
+  frozen 10-verb vocabulary embedded and drift-guarded against the prose spec.
+- `baron status` — clone/branch divergence (the three stranding classes from the 2026-07-22
+  field incident), overdue open handoffs, and ledger/wiki staleness, CI-usable exit codes.
+- `baron finding|decision new` — race-safe F/D-number allocation via push-retry;
+  `baron handoff create|close|list` (archive-not-delete lifecycle) and `baron index`.
+
+```bash
+uv tool install ./cli && baron --help
+```
+
 ## Sister skill — `multi-agent-audit`
 
 The other half of the kit: a **read-only audit skill** that grades multi-agent projects against an evidence-based rubric. Bootstrap **builds** projects; audit **grades** them.

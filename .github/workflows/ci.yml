@@ -17,3 +17,12 @@ jobs:
         run: python tests/bi_runtime_accept.py
       - name: Repo lint (placeholders, dead links, fixture leaks, version sync)
         run: python tests/lint_repo.py
+
+  # baron CLI (Phase 2, ADR-003) — the one packaged component; tested via uv.
+  baron-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: baron test suite (schemas drift guard, stranding topology, ledger race)
+        run: uv run --project cli pytest cli/tests

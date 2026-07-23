@@ -6,6 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — baron CLI M1–M3 (Phase 2: conventions → mechanisms, ADR-003)
+
+- **`docs/adr/ADR-003-baron-cli.md`** (accepted 2026-07-22) — the `baron` CLI decisions:
+  markdown/git substrate as the only database; typer+pyyaml-only dependency policy (git/gh
+  via subprocess); forge Protocol with GitLab-as-plugin backlog (`baron.forges` entry-point
+  group); ledger ID allocation via push-retry; archive-not-delete handoff lifecycle.
+  Motivations traced to field evidence: three F-number collisions, the 2026-07-22
+  triple-stranding incident, markdown LOCK-commit races, 18/40 open handoffs
+  (badminton-analyzer), and enforcement theater (GardenTwin audit, operational fidelity 0.53).
+- **`cli/`** — the `baron-cli` package (src layout, Python ≥ 3.10, console script `baron`):
+  - **M1 `baron validate [PATH]`** — persona.yaml/manifest.yaml validation against
+    declarative schemas (`cli/src/baron/schemas.py`) formalized from the prose specs;
+    embeds the FROZEN 10-verb capability vocabulary with a drift-guard test that re-parses
+    `references/capability-vocab.v1.md`. Checks parse/fields/types/verbs/allow-deny
+    overlap/unfilled placeholders; template dirs (`assets/collab-repo/`, `legacy/`) skipped
+    on discovery. `--json`; exit 0 clean / 1 errors.
+  - **M2 `baron status [--fetch] [--sla N] [--json]`** — divergence & staleness report:
+    ahead/behind origin default branch, dirt, unmerged local branches with age, open
+    handoffs past SLA, ledger staleness vs code-repo activity (labeled heuristic), stale
+    `wiki/status.md`. Acceptance test builds a synthetic topology reproducing the three
+    2026-07-22 stranding classes. Exit 0 green / 1 any red.
+  - **M3 ledgers & handoffs** — `baron finding new` / `baron decision new` (max-ID parse of
+    both heading and table-row forms, push-retry renumbering on rejection, injectable
+    clock, `--no-push`); `baron handoff create/close/list` (standard frontmatter; close =
+    status flip + `closed:` date + optional note + `git mv` to `_handoff/archive/YYYY/`);
+    `baron index` (marker-delimited summary block in `_handoff/README.md` + report-only
+    numbering verification). Race acceptance test: two clones allocate the same F-number;
+    the rejected writer renumbers and both land.
+- **`references/manifest.schema.md` v1.2** — optional `workspace.clones` /
+  `workspace.worktrees_root` fields (local persona working copies for `baron status`
+  sweeps); commented example block in `manifest.example.yaml`.
+- **`docs/BACKLOG.md`** — GitLab forge plugin design sketch (entry-point discovery, same
+  Protocol, `forge: gitlab` manifest key) plus consciously deferred M1–M3 items; worktree
+  topology tracked as baron M6.
+- **CI** — new `baron-cli` job (`uv run --project cli pytest cli/tests`); the stdlib-only
+  jobs are untouched.
+
 ## [1.4.0] — 2026-07-22
 
 The credibility-debt release: one front door, honest artifacts, real tests, and the

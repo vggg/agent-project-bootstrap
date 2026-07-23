@@ -4,6 +4,21 @@ Tracks current progress and deferred candidates. Update on every PR that ships a
 `CONTRIBUTING.md`). Full release history lives in `CHANGELOG.md`; the v0→v1 migration story
 lives in [`docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md`](docs/adr/ADR-001-runtime-agnostic-multi-agent-bootstrap.md).
 
+## In progress — Phase 2: conventions → mechanisms (baron CLI)
+
+Per [ADR-003](docs/adr/ADR-003-baron-cli.md): the coordination conventions ADR-002 promoted
+are being mechanized as the `baron` CLI (`cli/`, typer+pyyaml only, markdown/git substrate
+stays the only database). Unreleased — see `CHANGELOG.md` [Unreleased].
+
+- [x] **M1 `baron validate`** — schema validation for persona.yaml/manifest.yaml; frozen
+  10-verb vocabulary embedded + drift-guarded against `capability-vocab.v1.md`.
+- [x] **M2 `baron status`** — divergence/staleness report (the 2026-07-22 stranding classes,
+  handoff SLA, ledger/wiki staleness); `workspace.*` manifest fields (schema v1.2).
+- [x] **M3 ledgers/handoffs/index** — push-retry F/D allocation, handoff lifecycle with
+  archive-not-delete, marker-delimited `_handoff/README.md` index.
+- [ ] **M4+ forge-consuming commands** (lock guard, merger preconditions) — `docs/BACKLOG.md`.
+- [ ] **M6 worktree/branch-per-persona topology** — `docs/BACKLOG.md`.
+
 ## Shipped
 
 | Version | Date | Summary (details in `CHANGELOG.md`) |

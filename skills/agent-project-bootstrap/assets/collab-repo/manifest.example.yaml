@@ -32,3 +32,10 @@ personas:
 adapters:                     # optional; runtime-neutral envelope (v1.1)
   claude:
     tier: auto                # auto | 2 | 3 — project-default rendering tier
+# workspace:                  # optional (v1.2): local persona working copies, so
+#   clones:                   # `baron status` can sweep them for divergence
+#     - persona: fern
+#       path: ../gardenkit-fern
+#     - persona: moss
+#       path: ../gardenkit-moss
+#   worktrees_root: ../worktrees  # alternative: every git dir under here is swept

@@ -1,0 +1,38 @@
+# baron-cli — Phase 2 of agent-project-bootstrap: conventions -> mechanisms (ADR-003).
+#
+# Dependency policy (ADR-003): typer + pyyaml ONLY. No rich (typer may pull it
+# transitively; baron never imports it), no gitpython (git via subprocess), no
+# jsonschema (validation is hand-rolled declarative data in baron/schemas.py).
+# gh is an OPTIONAL runtime prerequisite for forge features; M1-M3 work without it.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "baron-cli"
+version = "0.1.0"
+description = "Disciplined reader/writer over agent-project-bootstrap collab repos — the markdown/git substrate is the database."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "typer>=0.12",
+  "pyyaml>=6.0",
+]
+
+[project.scripts]
+baron = "baron.cli:app"
+
+# Forge implementations are discoverable plugins. GitHub ships built-in; a
+# GitLab forge is backlog (docs/BACKLOG.md) and would register here from its
+# own distribution, e.g.:  gitlab = "baron_gitlab:GitLabForge"
+[project.entry-points."baron.forges"]
+github = "baron.forge.github:GitHubForge"
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/baron"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
